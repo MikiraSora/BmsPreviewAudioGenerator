@@ -8,11 +8,27 @@
 
   <ItemGroup>
     <PackageReference Include="ManagedBass" Version="2.0.4" />
+    <PackageReference Include="ManagedBass.Enc" Version="2.0.0" />
     <PackageReference Include="ManagedBass.Mix" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="G:\Bemusilization\Bemusilization.csproj" />
+    <ProjectReference Include="..\Bemusilization\Bemusilization.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="bass.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="bassenc.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="bassmix.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="lame.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
