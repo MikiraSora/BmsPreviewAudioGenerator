@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BmsPreviewAudioGenerator": {
+      "commandName": "Project",
+      "commandLineArgs": "-path=\"H:\\BOF2012\\F.O.E\" -batch -start=\"50%\" -end=\"75%\""
+    }
+  }
+}
