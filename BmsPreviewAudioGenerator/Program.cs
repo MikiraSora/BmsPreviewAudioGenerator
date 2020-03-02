@@ -3,6 +3,7 @@ using ManagedBass;
 using ManagedBass.Enc;
 using ManagedBass.Mix;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -32,7 +33,7 @@ namespace BmsPreviewAudioGenerator
 
             for (int i = 0; i < target_directories.Length; i++)
             {
-                Console.WriteLine($"-------\t{i+1}/{target_directories.Length} ({100.0f*(i+1)/target_directories.Length:F2}%)\t-------");
+                Console.WriteLine($"-------\t{i + 1}/{target_directories.Length} ({100.0f * (i + 1) / target_directories.Length:F2}%)\t-------");
                 var dir = target_directories[i];
                 try
                 {
@@ -43,6 +44,10 @@ namespace BmsPreviewAudioGenerator
                 {
                     Console.WriteLine($"Failed.\n{ex.Message}\n{ex.StackTrace}");
                 }
+
+#if DEBUG
+                Debug.Assert(Bass.LastError == Errors.OK, $"Bass.LastError = {Bass.LastError}");
+#endif
             }
         }
 
@@ -62,7 +67,7 @@ namespace BmsPreviewAudioGenerator
         /// <param name="end_time">终止时间，单位毫秒或者百分比，默认谱面末尾</param>
         /// <param name="encoder_command_line">编码命令</param>
         /// <param name="save_file_name">保存的文件名</param>
-        public static void GeneratePreviewAudio(string dir_path,string specific_bms_file_name=null,string start_time = null, string end_time = null,string encoder_command_line="", string save_file_name= "preview_auto_generator.ogg")
+        public static void GeneratePreviewAudio(string dir_path, string specific_bms_file_name = null, string start_time = null, string end_time = null, string encoder_command_line = "", string save_file_name = "preview_auto_generator.ogg")
         {
             save_file_name = string.IsNullOrWhiteSpace(save_file_name) ? "preview_auto_generator.ogg" : save_file_name;
 
@@ -76,14 +81,24 @@ namespace BmsPreviewAudioGenerator
 
             Console.WriteLine($"BMS file path:{bms_file_path}");
 
-            var chart = new BMS.BMSChart(File.ReadAllText(bms_file_path));
+            var content = File.ReadAllText(bms_file_path);
+
+            if (CheckSkipable(dir_path, content))
+            {
+                Console.WriteLine("This bms contains preview audio file, skiped.");
+                return;
+            }
+
+            var chart = new BMS.BMSChart(content);
             chart.Parse(BMS.ParseType.Header);
             chart.Parse(BMS.ParseType.Resources);
             chart.Parse(BMS.ParseType.Content);
 
+
+            var created_audio_handles = new HashSet<int>();
             var audio_map = chart.IterateResourceData(BMS.ResourceType.wav)
                 .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault()))
-                .Select(x => (x.resourceId, Bass.CreateStream(x.Item2, 0, 0, BassFlags.Decode | BassFlags.Float)))
+                .Select(x => (x.resourceId, LoadAudio(x.Item2)))
                 .ToDictionary(x => x.resourceId, x => x.Item2);
 
             var bms_evemts = chart.Events
@@ -111,8 +126,8 @@ namespace BmsPreviewAudioGenerator
             #region Calculate and Adjust StartTime/EndTime
 
             var full_audio_duration = mixer_events.OfType<AudioMixEvent>().Max(x => x.Duration + x.Time).Add(TimeSpan.FromSeconds(1));
-            var actual_end_time = string.IsNullOrWhiteSpace(end_time) ? full_audio_duration : (end_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(end_time.TrimEnd('%'))/100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(end_time)));
-            var actual_start_time = string.IsNullOrWhiteSpace(start_time) ? TimeSpan.Zero : (start_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(start_time.TrimEnd('%'))/100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(start_time)));
+            var actual_end_time = string.IsNullOrWhiteSpace(end_time) ? full_audio_duration : (end_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(end_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(end_time)));
+            var actual_start_time = string.IsNullOrWhiteSpace(start_time) ? TimeSpan.Zero : (start_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(start_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(start_time)));
 
             actual_start_time = actual_start_time < TimeSpan.Zero ? TimeSpan.Zero : actual_start_time;
             actual_start_time = actual_start_time > full_audio_duration ? full_audio_duration : actual_start_time;
@@ -120,7 +135,7 @@ namespace BmsPreviewAudioGenerator
             actual_end_time = actual_end_time < TimeSpan.Zero ? TimeSpan.Zero : actual_end_time;
             actual_end_time = actual_end_time > full_audio_duration ? full_audio_duration : actual_end_time;
 
-            if (actual_end_time<actual_start_time)
+            if (actual_end_time < actual_start_time)
             {
                 var t = actual_end_time;
                 actual_end_time = actual_start_time;
@@ -137,17 +152,19 @@ namespace BmsPreviewAudioGenerator
 
             int encoder = 0;
 
+            var sync_record = new HashSet<int>();
+
             foreach (var evt in mixer_events)
             {
                 var trigger_position = Bass.ChannelSeconds2Bytes(mixer, evt.Time.TotalSeconds);
 
-                Bass.ChannelSetSync(mixer, SyncFlags.Position | SyncFlags.Mixtime, trigger_position, (nn, mm, ss, ll) =>
+                sync_record.Add(Bass.ChannelSetSync(mixer, SyncFlags.Position | SyncFlags.Mixtime, trigger_position, (nn, mm, ss, ll) =>
                 {
                     if (evt is StopMixEvent && encoder != 0)
                     {
                         Bass.ChannelStop(mixer);
                         BassEnc.EncodeStop(encoder);
-                         encoder = 0;
+                        encoder = 0;
                     }
                     else if (evt is StartMixEvent && encoder == 0)
                     {
@@ -162,29 +179,60 @@ namespace BmsPreviewAudioGenerator
                         Bass.ChannelSetPosition(handle, Bass.ChannelSeconds2Bytes(handle, audio.PlayOffset.TotalSeconds));
                         BassMix.MixerAddChannel(mixer, handle, BassFlags.Default);
                     }
-                });
+                }));
             }
 
             WaitChannelDataProcessed(mixer);
 
             #region Clean Resource
 
-            foreach (var handle in audio_map.Values)
-                Bass.MusicFree(handle);
+            foreach (var record in sync_record)
+                Bass.ChannelRemoveSync(mixer, record);
+
+            foreach (var handle in created_audio_handles)
+                Bass.StreamFree(handle);
 
             Bass.StreamFree(mixer);
             #endregion
+
+            int LoadAudio(string item2)
+            {
+                var handle = Bass.CreateStream(item2, 0, 0, BassFlags.Decode | BassFlags.Float);
+
+                created_audio_handles.Add(handle);
+
+                return handle;
+            }
+        }
+
+        private readonly static string[] support_extension_names = new[]
+        {
+            ".ogg",".mp3",".wav"
+        };
+
+        private static bool CheckSkipable(string dir_path, string content)
+        {
+            //check if there exist file named "preview*.(ogg|mp3|wav)"
+            if (Directory.EnumerateFiles(dir_path, "preview*").Any(x => support_extension_names.Any(y => x.EndsWith(y,StringComparison.InvariantCultureIgnoreCase))))
+                return true;
+
+            if (content.Contains("#preview", StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            return false;
         }
 
         private static void WaitChannelDataProcessed(int handle)
         {
-            var buffer = new byte[1024_000 * 10];
+            var buffer = ArrayPool<byte>.Shared.Rent(1024_000 * 10);
 
             while (true)
             {
                 if (Bass.ChannelGetData(handle, buffer, buffer.Length) <= 0)
-                    return;
+                    break;
             }
+
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 }
