@@ -19,7 +19,13 @@ namespace BmsPreviewAudioGenerator
         {
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
 
-            var result = Bass.Init();
+            if (!Bass.Init())
+            {
+                Console.WriteLine($"Init BASS failed:{Bass.LastError}");
+                return;
+            }
+
+            Console.WriteLine($"Init BASS successfully.");
 
             var st = CommandLine.TryGetOptionValue<string>("start", out var s) ? s : null;
             var et = CommandLine.TryGetOptionValue<string>("end", out var e) ? e : null;
@@ -27,7 +33,7 @@ namespace BmsPreviewAudioGenerator
             var path = CommandLine.TryGetOptionValue<string>("path", out var p) ? p : throw new Exception("MUST type a path.");
             var bms = CommandLine.TryGetOptionValue<string>("bms", out var b) ? b : null;
             var batch = CommandLine.ContainSwitchOption("batch");
-            var fc = CommandLine.TryGetOptionValue<bool>("fast_clip", out var ww) ? ww : false;
+            var fc = CommandLine.ContainSwitchOption("fast_clip");
 
             if (batch && !string.IsNullOrWhiteSpace(bms))
                 throw new Exception("Not allow set param \"bms\" and \"batch\" at same time!");
@@ -47,10 +53,20 @@ namespace BmsPreviewAudioGenerator
                     Console.WriteLine($"Failed.\n{ex.Message}\n{ex.StackTrace}");
                 }
 
-#if DEBUG
-                Debug.Assert(Bass.LastError == Errors.OK, $"Bass.LastError = {Bass.LastError}");
-#endif
+                if (Bass.LastError != Errors.OK)
+                {
+                    Console.WriteLine($"Bass get error:{Bass.LastError},try reinit...");
+                    Bass.Free();
+                    if (!Bass.Init())
+                    {
+                        Console.WriteLine($"Reinit BASS failed:{Bass.LastError}");
+                        return;
+                    }
+                    Console.WriteLine($"Success reinit BASS.");
+                }
             }
+
+            Bass.Free();
         }
 
         private static string[] EnumerateConvertableDirectories(string path)
@@ -157,7 +173,7 @@ namespace BmsPreviewAudioGenerator
                     actual_start_time = t;
                 }
 
-                Console.WriteLine($"Actual Clip({(int)full_audio_duration.TotalMilliseconds}ms):{(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
+                Console.WriteLine($"Actual clip({(int)full_audio_duration.TotalMilliseconds}ms):{(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
 
                 #endregion
 
@@ -217,7 +233,8 @@ namespace BmsPreviewAudioGenerator
                 foreach (var handle in created_audio_handles)
                     Bass.StreamFree(handle);
 
-                Bass.StreamFree(mixer);
+                if (mixer != 0)
+                    Bass.StreamFree(mixer);
 
                 #endregion
             }
@@ -237,19 +254,19 @@ namespace BmsPreviewAudioGenerator
             //remove events which out of range and never play
             var tst = actual_start_time;
             var tet = actual_end_time;
-            var count = mixer_events.Count;
-            mixer_events.RemoveAll(e => e is AudioMixEvent evt && (((evt.Time + evt.Duration) <= tst) || (evt.Time >= tet)));
+            var remove_count = mixer_events.RemoveAll(e => 
+            e is AudioMixEvent evt && (((evt.Time.Add(evt.Duration)) < tst) || (evt.Time > tet)));
 
             foreach (var evt in mixer_events.OfType<AudioMixEvent>().Where(x => x.Time < tst))
                 evt.PlayOffset = tst - evt.Time;
 
             foreach (var evt in mixer_events)
-                evt.Time -= tst;
+                evt.Time -= evt is AudioMixEvent audio_evt ? (tst - audio_evt.PlayOffset) : tst;
 
-            actual_start_time -= actual_start_time;
-            actual_end_time -= actual_start_time;
+            actual_start_time -= tst;
+            actual_end_time -= tst;
 
-            Console.WriteLine($"Fast clip:remove {mixer_events.Count - count} events,now is {(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
+            Console.WriteLine($"Fast clip:remove {remove_count} events,now is {(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
         }
 
         private readonly static string[] support_extension_names = new[]
