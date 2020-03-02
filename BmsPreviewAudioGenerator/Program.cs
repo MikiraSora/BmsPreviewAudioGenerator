@@ -139,7 +139,7 @@ namespace BmsPreviewAudioGenerator
                     || e.type == BMS.BMSEventType.LongNoteEnd
                     || e.type == BMS.BMSEventType.LongNoteStart)
                     .OrderBy(x => x.time)
-                    .Where(x => audio_map.ContainsKey(x.data2))
+                    .Where(x => audio_map.ContainsKey(x.data2))//filter
                     .ToArray();
 
                 //init mixer
