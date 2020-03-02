@@ -37,11 +37,11 @@ namespace BmsPreviewAudioGenerator
                 try
                 {
                     GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn);
-                    Console.WriteLine("Generate Successfully!");
+                    Console.WriteLine("Success!");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Generate failed.\n{ex.Message}\n{ex.StackTrace}");
+                    Console.WriteLine($"Failed.\n{ex.Message}\n{ex.StackTrace}");
                 }
             }
         }
@@ -147,7 +147,7 @@ namespace BmsPreviewAudioGenerator
                     {
                         Bass.ChannelStop(mixer);
                         BassEnc.EncodeStop(encoder);
-                        encoder = 0;
+                         encoder = 0;
                     }
                     else if (evt is StartMixEvent && encoder == 0)
                     {
@@ -167,7 +167,13 @@ namespace BmsPreviewAudioGenerator
 
             WaitChannelDataProcessed(mixer);
 
-            Bass.Free();
+            #region Clean Resource
+
+            foreach (var handle in audio_map.Values)
+                Bass.MusicFree(handle);
+
+            Bass.StreamFree(mixer);
+            #endregion
         }
 
         private static void WaitChannelDataProcessed(int handle)
