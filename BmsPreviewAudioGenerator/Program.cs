@@ -68,16 +68,20 @@ namespace BmsPreviewAudioGenerator
 
             var target_directories = batch ? EnumerateConvertableDirectories(path) : new[] { path };
 
+            HashSet<string> failed_paths = new HashSet<string>();
+
             for (int i = 0; i < target_directories.Length; i++)
             {
                 Console.WriteLine($"-------\t{i + 1}/{target_directories.Length} ({100.0f * (i + 1) / target_directories.Length:F2}%)\t-------");
                 var dir = target_directories[i];
                 try
                 {
-                    GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn,fast_clip:fc,check_vaild:cv);
+                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, fast_clip: fc, check_vaild: cv))
+                        failed_paths.Add(dir);
                 }
                 catch (Exception ex)
                 {
+                    failed_paths.Add(dir);
                     Console.WriteLine($"Failed.\n{ex.Message}\n{ex.StackTrace}");
                 }
 
@@ -93,6 +97,10 @@ namespace BmsPreviewAudioGenerator
                     Console.WriteLine($"Success reinit BASS.");
                 }
             }
+
+            Console.WriteLine($"\n\n\nGenerate failed list({failed_paths.Count}):");
+            foreach (var fp in failed_paths)
+                Console.WriteLine(fp);
 
             Bass.Free();
         }
