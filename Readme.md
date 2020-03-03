@@ -23,23 +23,31 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 ### **参数**
 通用参数格式(推荐):
 ```
- -your_option1="your_value1" -your_option2="your_value2" -your_option3
+ -your_option1="your_value1" -your_option2="your_value2" -your_switch
 ```
 
 支持参数:
-* `start` : 表示预览音频的起始时间,如果是`xx%`表示相对于bms播放音乐总长的对应位置(比如"25.4%"),如果是具体数值则是以毫秒为单位的绝对位置(比如2857ms => "2857")
+* `start` : 表示预览音频的起始时间,如果是`xx%`表示相对于bms播放音乐总长的对应位置(比如"25.4%"),如果是具体数值则是以毫秒为单位的绝对位置(比如2857ms => "2857"),默认为音频开头
 
-* `end` : 表示预览音频的终止时间，参数格式和`start`相同
+* `end` : 表示预览音频的终止时间，参数格式和`start`相同，默认为谱面末尾
 
 * `path` : 可以钦定某个bms文件夹，在钦定`batch`批量环境下可以表示含有一堆bms子文件夹的路径(不限制bms子文件夹的对应深度)
 
-* `batch` : 钦定这个表示批量生成,此参数不能和`bms`共存
+* `batch` :(开关) 钦定这个表示批量生成,此参数不能和`bms`共存
 
-* `bms` : 钦定bms文件名字,批量环境下会自动选取第一个bms文件,此参数不能和`batch`共存
+* `bms` : 钦定bms文件名字,批量环境下会自动选取第一个bms类型文件,此参数不能和`batch`共存
 
-* `save_name` : 钦定输出的预览音频文件名,貌似也能钦定一个绝对路径
+* `save_name` : 钦定输出的预览音频文件名,貌似也能钦定一个绝对路径,默认为`preview_auto_generator.ogg`
 
-* `fast_clip` : 钦定使用快速切分实现，编码速度更快.
+* `fast_clip` :(开关) 钦定使用快速切分实现，编码速度更快.
+
+* `process_buffer_size` : 钦定处理音频的缓存的大小，字节单位，默认20000,越大处理越快，但更容易出现栈溢出错误。
+
+* `support_extend_format` :(开关) 额外支持.bme/.bml/.bmson格式的解析
+
+* `check_vaild` :(开关) 额外检查已生成预览音频文件的完整性
+
+* `rm` :(开关) 此选项必须和`path`和`save_name`配合食用，除此之外的选项均无效且忽略。将递归子文件夹，删除path目录内所有符合文件名以"preview"开头且和`save_name`名字相同的文件。
 
 ### 注意事项
 * 此工具可能占用500m内存(音频解码/混合/编码),梦回2006的电脑就8要用了8.
