@@ -1,15 +1,13 @@
-﻿using BmsPreviewAudioGenerator.MixEvent;
+﻿using BMS;
+using BmsPreviewAudioGenerator.MixEvent;
 using ManagedBass;
 using ManagedBass.Enc;
 using ManagedBass.Mix;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace BmsPreviewAudioGenerator
 {
@@ -135,12 +133,12 @@ namespace BmsPreviewAudioGenerator
                 }
             }
 
-            Console.WriteLine($"Enumerated {s+f} files , success:{s} failed:{f}");
+            Console.WriteLine($"Enumerated {s + f} files , success:{s} failed:{f}");
         }
 
         private static string[] EnumerateConvertableDirectories(string path)
         {
-            var result = Directory.EnumerateFiles(path, "*.bm*", SearchOption.AllDirectories).Where(x=>support_bms_format.Any(y=>x.EndsWith(y,StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
+            var result = Directory.EnumerateFiles(path, "*.bm*", SearchOption.AllDirectories).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
 
             return result;
         }
@@ -165,7 +163,7 @@ namespace BmsPreviewAudioGenerator
             bool fast_clip = false)
         {
             var created_audio_handles = new HashSet<int>();
-            var sync_record = new HashSet<int>(); 
+            var sync_record = new HashSet<int>();
             int mixer = 0;
 
             try
@@ -190,23 +188,23 @@ namespace BmsPreviewAudioGenerator
                     return true;
                 }
 
-                var chart = new BMS.BMSChart(content);
-                chart.Parse(BMS.ParseType.Header);
-                chart.Parse(BMS.ParseType.Resources);
-                chart.Parse(BMS.ParseType.Content);
+                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BmsonChart(content) as Chart : new BMSChart(content);
+                chart.Parse(ParseType.Header);
+                chart.Parse(ParseType.Resources);
+                chart.Parse(ParseType.Content);
 
 
-                var audio_map = chart.IterateResourceData(BMS.ResourceType.wav)
+                var audio_map = chart.IterateResourceData(ResourceType.wav)
                     .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault()))
                     .Select(x => (x.resourceId, LoadAudio(x.Item2)))
                     .ToDictionary(x => x.resourceId, x => x.Item2);
 
                 var bms_evemts = chart.Events
                     .Where(e => e.type ==
-                    BMS.BMSEventType.WAV
-                    || e.type == BMS.BMSEventType.Note
-                    || e.type == BMS.BMSEventType.LongNoteEnd
-                    || e.type == BMS.BMSEventType.LongNoteStart)
+                    BMSEventType.WAV
+                    || e.type == BMSEventType.Note
+                    || e.type == BMSEventType.LongNoteEnd
+                    || e.type == BMSEventType.LongNoteStart)
                     .OrderBy(x => x.time)
                     .Where(x => audio_map.ContainsKey(x.data2))//filter
                     .ToArray();
@@ -341,7 +339,7 @@ namespace BmsPreviewAudioGenerator
             //remove events which out of range and never play
             var tst = actual_start_time;
             var tet = actual_end_time;
-            var remove_count = mixer_events.RemoveAll(e => 
+            var remove_count = mixer_events.RemoveAll(e =>
             e is AudioMixEvent evt && (((evt.Time.Add(evt.Duration)) < tst) || (evt.Time > tet)));
 
             foreach (var evt in mixer_events.OfType<AudioMixEvent>().Where(x => x.Time < tst))
@@ -364,7 +362,7 @@ namespace BmsPreviewAudioGenerator
         private static bool CheckSkipable(string dir_path, string content)
         {
             //check if there exist file named "preview*.(ogg|mp3|wav)"
-            if (Directory.EnumerateFiles(dir_path, "preview*").Any(x => support_extension_names.Any(y => x.EndsWith(y,StringComparison.InvariantCultureIgnoreCase))))
+            if (Directory.EnumerateFiles(dir_path, "preview*").Any(x => support_extension_names.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))))
                 return true;
 
             if (content.Contains("#preview", StringComparison.InvariantCultureIgnoreCase))
