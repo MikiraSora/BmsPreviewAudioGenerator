@@ -29,11 +29,19 @@ namespace BmsPreviewAudioGenerator
 
             var st = CommandLine.TryGetOptionValue<string>("start", out var s) ? s : null;
             var et = CommandLine.TryGetOptionValue<string>("end", out var e) ? e : null;
-            var sn = CommandLine.TryGetOptionValue<string>("save_name", out var sw) ? sw : null;
+            var sn = CommandLine.TryGetOptionValue<string>("save_name", out var sw) ? sw : "preview_auto_generator.ogg";
             var path = CommandLine.TryGetOptionValue<string>("path", out var p) ? p : throw new Exception("MUST type a path.");
             var bms = CommandLine.TryGetOptionValue<string>("bms", out var b) ? b : null;
             var batch = CommandLine.ContainSwitchOption("batch");
             var fc = CommandLine.ContainSwitchOption("fast_clip");
+            var cv = CommandLine.ContainSwitchOption("check_valid");
+            var rm = CommandLine.ContainSwitchOption("rm");
+
+            if (rm)
+            {
+                DeleteGeneratedAudioFiles(path, sn);
+                return;
+            }
 
             if (batch && !string.IsNullOrWhiteSpace(bms))
                 throw new Exception("Not allow set param \"bms\" and \"batch\" at same time!");
@@ -46,7 +54,7 @@ namespace BmsPreviewAudioGenerator
                 var dir = target_directories[i];
                 try
                 {
-                    GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn,fast_clip:fc);
+                    GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn,fast_clip:fc,check_vaild:cv);
                 }
                 catch (Exception ex)
                 {
@@ -67,6 +75,39 @@ namespace BmsPreviewAudioGenerator
             }
 
             Bass.Free();
+        }
+
+        private static void DeleteGeneratedAudioFiles(string path, string sn)
+        {
+            if (string.IsNullOrWhiteSpace(sn))
+                throw new Exception("Must set param \"save_name\"");
+
+            //enumerate files and safe check
+            var delete_targets = Directory.EnumerateFiles(path, sn, SearchOption.AllDirectories)
+                .Where(x =>
+                {
+                    x = Path.GetFileName(x);
+                    return x.StartsWith("preview", StringComparison.InvariantCultureIgnoreCase) && support_extension_names.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase));
+                });
+
+            int s = 0, f = 0;
+
+            foreach (var file_path in delete_targets)
+            {
+                try
+                {
+                    File.Delete(file_path);
+                    s++;
+                    Console.WriteLine($"Deleted successfully {file_path} ");
+                }
+                catch (Exception e)
+                {
+                    f++;
+                    Console.WriteLine($"Deleted failed {file_path} : {e.Message}");
+                }
+            }
+
+            Console.WriteLine($"Enumerated {s+f} files , success:{s} failed:{f}");
         }
 
         private static string[] EnumerateConvertableDirectories(string path)
@@ -92,6 +133,7 @@ namespace BmsPreviewAudioGenerator
             string end_time = null,
             string encoder_command_line = "",
             string save_file_name = "preview_auto_generator.ogg",
+            bool check_vaild = false,
             bool fast_clip = false)
         {
             var created_audio_handles = new HashSet<int>();
@@ -100,7 +142,6 @@ namespace BmsPreviewAudioGenerator
 
             try
             {
-
                 save_file_name = string.IsNullOrWhiteSpace(save_file_name) ? "preview_auto_generator.ogg" : save_file_name;
 
                 if (!Directory.Exists(dir_path))
@@ -115,7 +156,7 @@ namespace BmsPreviewAudioGenerator
 
                 var content = File.ReadAllText(bms_file_path);
 
-                if (CheckSkipable(dir_path, content))
+                if ((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content))
                 {
                     Console.WriteLine("This bms contains preview audio file, skiped.");
                     return true;
@@ -247,6 +288,24 @@ namespace BmsPreviewAudioGenerator
 
                 return handle;
             }
+        }
+
+        /// <summary>
+        /// 检查已生成的文件是否存在,或为空文件
+        /// </summary>
+        /// <param name="dir_path"></param>
+        /// <param name="save_file_name"></param>
+        /// <returns></returns>
+        private static bool CheckBeforeFileVaild(string dir_path, string save_file_name)
+        {
+            var path = Path.Combine(dir_path, save_file_name);
+
+            if ((!File.Exists(path)))
+                return false;
+
+            using var fs = File.OpenRead(path);
+
+            return fs.Length != 0;
         }
 
         private static void FastClipEvent(List<MixEventBase> mixer_events, ref TimeSpan actual_start_time, ref TimeSpan actual_end_time)

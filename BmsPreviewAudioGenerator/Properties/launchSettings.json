@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"E:\\[BGAPARTY_inukoro]tezuka_nini_ogg\" -batch -start=\"50%\" -end=\"75%\" -fast_clip"
+      "commandLineArgs": "-path=\"E:\\LR2Songs\" -check_valid -batch -start=\"50%\" -end=\"75%\" -fast_clip"
     }
   }
 }
