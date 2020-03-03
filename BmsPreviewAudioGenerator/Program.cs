@@ -17,6 +17,11 @@ namespace BmsPreviewAudioGenerator
     {
         private static int ProcessBufferSize { get; set; }
 
+        private static string[] support_bms_format = new[]
+        {
+            ".bms"
+        };
+
         static void Main(string[] args)
         {
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
@@ -40,6 +45,17 @@ namespace BmsPreviewAudioGenerator
             var fc = CommandLine.ContainSwitchOption("fast_clip");
             var cv = CommandLine.ContainSwitchOption("check_valid");
             var rm = CommandLine.ContainSwitchOption("rm");
+
+            if (CommandLine.ContainSwitchOption("support_extend_format"))
+            {
+                support_bms_format = new[]
+                {
+                    ".bms",
+                    ".bme",
+                    ".bml",
+                    ".bmson",
+                };
+            }
 
             if (rm)
             {
@@ -116,7 +132,7 @@ namespace BmsPreviewAudioGenerator
 
         private static string[] EnumerateConvertableDirectories(string path)
         {
-            var result = Directory.EnumerateFiles(path, "*.bms", SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
+            var result = Directory.EnumerateFiles(path, "*.bm*", SearchOption.AllDirectories).Where(x=>support_bms_format.Any(y=>x.EndsWith(y,StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
 
             return result;
         }
@@ -151,7 +167,7 @@ namespace BmsPreviewAudioGenerator
                 if (!Directory.Exists(dir_path))
                     throw new Exception($"Directory {dir_path} not found.");
 
-                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.bms", SearchOption.TopDirectoryOnly).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
+                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.bm*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
 
                 if (!File.Exists(bms_file_path))
                     throw new Exception($"BMS file {bms_file_path} not found.");
