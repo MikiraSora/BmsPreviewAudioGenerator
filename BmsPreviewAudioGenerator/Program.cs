@@ -15,6 +15,8 @@ namespace BmsPreviewAudioGenerator
 {
     class Program
     {
+        private static int ProcessBufferSize { get; set; }
+
         static void Main(string[] args)
         {
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
@@ -26,6 +28,8 @@ namespace BmsPreviewAudioGenerator
             }
 
             Console.WriteLine($"Init BASS successfully.");
+
+            ProcessBufferSize = CommandLine.TryGetOptionValue<int>("process_buffer_size", out var q) ? q : 20_000;
 
             var st = CommandLine.TryGetOptionValue<string>("start", out var s) ? s : null;
             var et = CommandLine.TryGetOptionValue<string>("end", out var e) ? e : null;
@@ -347,7 +351,7 @@ namespace BmsPreviewAudioGenerator
 
         private static void WaitChannelDataProcessed(int handle)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(1024_000 * 10);
+            var buffer = ArrayPool<byte>.Shared.Rent(ProcessBufferSize);
 
             while (true)
             {
