@@ -36,6 +36,8 @@ namespace BmsPreviewAudioGenerator
 
             var st = CommandLine.TryGetOptionValue<string>("start", out var s) ? s : null;
             var et = CommandLine.TryGetOptionValue<string>("end", out var e) ? e : null;
+            var fo = CommandLine.TryGetOptionValue<int>("fade_out", out var foo) ? foo : 0;
+            var fi = CommandLine.TryGetOptionValue<int>("fade_in", out var fii) ? fii : 0;
             var sn = CommandLine.TryGetOptionValue<string>("save_name", out var sw) ? sw : "preview_auto_generator.ogg";
             var path = CommandLine.TryGetOptionValue<string>("path", out var p) ? p : throw new Exception("MUST type a path.");
             var bms = CommandLine.TryGetOptionValue<string>("bms", out var b) ? b : null;
@@ -74,7 +76,7 @@ namespace BmsPreviewAudioGenerator
                 var dir = target_directories[i];
                 try
                 {
-                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, fast_clip: fc, check_vaild: cv))
+                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, fast_clip: fc, check_vaild: cv, fade_in: fi, fade_out: fo))
                         failed_paths.Add(dir);
                 }
                 catch (Exception ex)
@@ -159,6 +161,8 @@ namespace BmsPreviewAudioGenerator
             string end_time = null,
             string encoder_command_line = "",
             string save_file_name = "preview_auto_generator.ogg",
+            int fade_out = 0,
+            int fade_in = 0,
             bool check_vaild = false,
             bool fast_clip = false)
         {
@@ -277,6 +281,13 @@ namespace BmsPreviewAudioGenerator
                             BassMix.MixerRemoveChannel(handle);
                             Bass.ChannelSetPosition(handle, Bass.ChannelSeconds2Bytes(handle, audio.PlayOffset.TotalSeconds));
                             BassMix.MixerAddChannel(mixer, handle, BassFlags.Default);
+                        }
+                        else if (evt is FadeMixEvent fade)
+                        {
+                            if (fade.FadeOut)
+                                Bass.ChannelSlideAttribute(mixer, ChannelAttribute.Volume, 0, fade.Duration);
+                            else
+                                Bass.ChannelSlideAttribute(mixer, ChannelAttribute.Volume, 1, fade.Duration);
                         }
                     }));
                 }
