@@ -2,12 +2,16 @@
 using BmsPreviewAudioGenerator.MixEvent;
 using ManagedBass;
 using ManagedBass.Enc;
+using ManagedBass.Fx;
 using ManagedBass.Mix;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace BmsPreviewAudioGenerator
 {
@@ -44,6 +48,7 @@ namespace BmsPreviewAudioGenerator
             var batch = CommandLine.ContainSwitchOption("batch");
             var fc = CommandLine.ContainSwitchOption("fast_clip");
             var cv = CommandLine.ContainSwitchOption("check_valid");
+            var ns = CommandLine.ContainSwitchOption("no_skip");
             var rm = CommandLine.ContainSwitchOption("rm");
 
             if (CommandLine.ContainSwitchOption("support_extend_format"))
@@ -76,7 +81,7 @@ namespace BmsPreviewAudioGenerator
                 var dir = target_directories[i];
                 try
                 {
-                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, fast_clip: fc, check_vaild: cv, fade_in: fi, fade_out: fo))
+                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, no_skip:ns, fast_clip: fc,check_vaild: cv, fade_in: fi, fade_out: fo))
                         failed_paths.Add(dir);
                 }
                 catch (Exception ex)
@@ -164,7 +169,8 @@ namespace BmsPreviewAudioGenerator
             int fade_out = 0,
             int fade_in = 0,
             bool check_vaild = false,
-            bool fast_clip = false)
+            bool fast_clip = false,
+            bool no_skip = false)
         {
             var created_audio_handles = new HashSet<int>();
             var sync_record = new HashSet<int>();
@@ -186,7 +192,7 @@ namespace BmsPreviewAudioGenerator
 
                 var content = File.ReadAllText(bms_file_path);
 
-                if ((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content))
+                if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content))&&!no_skip)
                 {
                     Console.WriteLine("This bms contains preview audio file, skiped.");
                     return true;
@@ -255,7 +261,35 @@ namespace BmsPreviewAudioGenerator
                 mixer_events.Add(new StopMixEvent { Time = actual_end_time });
                 mixer_events.Add(new StartMixEvent() { Time = actual_start_time });
 
+                //save encoder handle
                 int encoder = 0;
+
+                #region apply fade in/out
+
+                var effect = new VolumeParameters();
+                var fx = Bass.ChannelSetFX(mixer, effect.FXType, 0);
+
+                if (fade_in!=0)
+                {
+                    var fade_in_evt = new FadeMixEvent(false, fade_in)
+                    {
+                        Time = actual_start_time
+                    };
+
+                    mixer_events.Add(fade_in_evt);
+                }
+
+                if (fade_out != 0)
+                {
+                    var fade_out_evt = new FadeMixEvent(true, fade_out)
+                    {
+                        Time = actual_end_time.Subtract(TimeSpan.FromMilliseconds(fade_out))
+                    };
+
+                    mixer_events.Add(fade_out_evt);
+                }
+
+                #endregion
 
                 foreach (var evt in mixer_events)
                 {
@@ -284,15 +318,26 @@ namespace BmsPreviewAudioGenerator
                         }
                         else if (evt is FadeMixEvent fade)
                         {
+                            effect.fTime = fade.Duration / 1000.0f;
+
                             if (fade.FadeOut)
-                                Bass.ChannelSlideAttribute(mixer, ChannelAttribute.Volume, 0, fade.Duration);
+                            {
+                                effect.fCurrent = 1;
+                                effect.fTarget = 0;
+                            }
                             else
-                                Bass.ChannelSlideAttribute(mixer, ChannelAttribute.Volume, 1, fade.Duration);
+                            {
+                                effect.fCurrent = 0;
+                                effect.fTarget = 1;
+                            }
+
+                            Bass.FXSetParameters(fx, effect);
                         }
                     }));
                 }
 
                 WaitChannelDataProcessed(mixer);
+
                 Console.WriteLine("Success!");
                 return true;
             }
