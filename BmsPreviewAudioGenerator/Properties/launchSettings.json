@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"E:\\[BGAPARTY_inukoro]tezuka_nini_ogg\\[BGAPARTY_inukoro]tezuka_nini_ogg\" -check_valid -start=\"50%\" -end=\"75%\" -fast_clip -fade_out=\"2000\" -fade_in=\"2000\" -no_skip"
+      "commandLineArgs": "-path=\"E:\\[BGAPARTY_inukoro]tezuka_nini_ogg\\[BGAPARTY_inukoro]tezuka_nini_ogg\" -check_valid -start=\"50%\" -end=\"75%\" -fast_clip -fade_in=\"2000\" -no_skip"
     }
   }
 }
