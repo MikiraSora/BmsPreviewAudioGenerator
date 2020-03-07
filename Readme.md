@@ -49,6 +49,12 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `rm` :(开关) 此选项必须和`path`和`save_name`配合食用，除此之外的选项均无效且忽略。将递归子文件夹，删除path目录内所有符合文件名以"preview"开头且和`save_name`名字相同的文件。
 
+* `fade_in` : 在音频开头添加淡入效果，其数值为效果持续时间，单位毫秒
+
+* `fade_out` : 在音频末尾添加淡出效果,其他同上.
+
+* `no_skip` : 禁止跳过检查
+
 ### 计划
 * 可添加歌曲和作者信息进音频标签数据里，以及preview图片文件
 * 多线程执行
