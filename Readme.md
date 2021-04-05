@@ -1,5 +1,6 @@
 ## BMS预览音频文件生成器
 ---
+- [**Usage Guide (English)**](https://github.com/wcko87/beatoraja-english-guide/discussions/33)
 
 ### **简介**
 此工具可以指定(或批量)生成bms预览音频文件并放置到对应的bms文件夹里。
