@@ -1,5 +1,5 @@
-﻿using BMS;
-using BmsPreviewAudioGenerator.MixEvent;
+﻿using BmsPreviewAudioGenerator.MixEvent;
+using CSBMSParser;
 using ManagedBass;
 using ManagedBass.Enc;
 using ManagedBass.Fx;
@@ -17,6 +17,18 @@ namespace BmsPreviewAudioGenerator
 {
     class Program
     {
+        private static string cs = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        public static string NumberToString(long num)
+        {
+            string str = string.Empty;
+            while (num >= 36)
+            {
+                str = cs[(int)(num % 36)] + str;
+                num = num / 36;
+            }
+            return cs[(int)num] + str;
+        }
+
         private static int ProcessBufferSize { get; set; }
 
         private static string[] support_bms_format = new[]
@@ -81,7 +93,7 @@ namespace BmsPreviewAudioGenerator
                 var dir = target_directories[i];
                 try
                 {
-                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, no_skip:ns, fast_clip: fc,check_vaild: cv, fade_in: fi, fade_out: fo))
+                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, no_skip: ns, fast_clip: fc, check_vaild: cv, fade_in: fi, fade_out: fo))
                         failed_paths.Add(dir);
                 }
                 catch (Exception ex)
@@ -192,45 +204,72 @@ namespace BmsPreviewAudioGenerator
 
                 var content = File.ReadAllText(bms_file_path);
 
-                if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content))&&!no_skip)
+                if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content)) && !no_skip)
                 {
                     Console.WriteLine("This bms contains preview audio file, skiped.");
                     return true;
                 }
 
-                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BmsonChart(content) as Chart : new BMSChart(content);
-                chart.Parse(ParseType.Header);
-                chart.Parse(ParseType.Resources);
-                chart.Parse(ParseType.Content);
+                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder() as ChartDecoder : new BMSDecoder();
+                var model = chart.decode(bms_file_path);
+                var notes = model.getAllTimeLines()
+                    .Select(x => 
+                        x.getBackGroundNotes().Concat(x.getNotes()))
+                    .SelectMany(x => x)
+                    .OfType<Note>()
+                    .Select(x => {
+                        return x.getLayeredNotes().Concat(new[] { x });
+                    })
+                    .SelectMany(x => x)
+                    .OfType<Note>()
+                    .OrderBy(x => x.getMicroTime())
+                    .Distinct()
+                    .ToArray();
+                var wavList = model.getWavList();
 
-
-                var audio_map = chart.IterateResourceData(ResourceType.wav)
+                var audio_map = wavList
+                    .Select((x, i) => new
+                    {
+                        resourceId = i,
+                        dataPath = x
+                    })
                     .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault()))
                     .Select(x => (x.resourceId, LoadAudio(x.Item2)))
                     .ToDictionary(x => x.resourceId, x => x.Item2);
 
-                var bms_evemts = chart.Events
-                    .Where(e => e.type ==
-                    BMSEventType.WAV
-                    || e.type == BMSEventType.Note
-                    || e.type == BMSEventType.LongNoteEnd
-                    || e.type == BMSEventType.LongNoteStart)
-                    .OrderBy(x => x.time)
-                    .Where(x => audio_map.ContainsKey(x.data2))//filter
+                var bms_evemts = notes
+                    .Where(x => audio_map.ContainsKey(x.getWav()))//filter
+                    .OrderBy(x => x.getMicroTime())
                     .ToArray();
 
                 //init mixer
                 mixer = BassMix.CreateMixerStream(44100, 2, BassFlags.Decode | BassFlags.MixerNonStop);
 
                 //build triggers
-                var mixer_events = new List<MixEventBase>(bms_evemts.Select(x => new AudioMixEvent()
+                var mixer_events = new List<MixEventBase>(bms_evemts.Select(x =>
                 {
-                    Time = x.time,
-                    Duration = TimeSpan.FromSeconds(Bass.ChannelBytes2Seconds(audio_map[x.data2], Bass.ChannelGetLength(audio_map[x.data2]))),
-                    PlayOffset = TimeSpan.Zero,
-                    AudioHandle = audio_map[x.data2]
+                    var wavId = x.getWav();
+                    var audioHandle = audio_map[wavId];
+                    return new AudioMixEvent()
+                    {
+                        Time = TimeSpan.FromMilliseconds(x.getMilliTime()),
+                        Duration = TimeSpan.FromSeconds(Bass.ChannelBytes2Seconds(audioHandle, Bass.ChannelGetLength(audioHandle))),
+                        PlayOffset = TimeSpan.Zero,
+                        WavId = wavId,
+                        AudioHandle = audioHandle
+                    };
                 }));
 
+                foreach (var @event in bms_evemts)
+                {
+                    Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
+                }
+                /*
+                foreach (var @event in mixer_events)
+                {
+                    Console.WriteLine($"{@event.GetType().Name.Replace("MixEvent", "")} {@event.Time} {@event switch { AudioMixEvent a=> " + "+ (int)a.Duration.TotalMilliseconds + "   " + wavList[a.WavId],_ => "",}}");
+                }
+                */
                 #region Calculate and Adjust StartTime/EndTime
 
                 var full_audio_duration = mixer_events.OfType<AudioMixEvent>().Max(x => x.Duration + x.Time).Add(TimeSpan.FromSeconds(1));
@@ -269,7 +308,7 @@ namespace BmsPreviewAudioGenerator
                 var effect = new VolumeParameters();
                 var fx = Bass.ChannelSetFX(mixer, effect.FXType, 0);
 
-                if (fade_in!=0)
+                if (fade_in != 0)
                 {
                     var fade_in_evt = new FadeMixEvent(false, fade_in)
                     {

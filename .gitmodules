@@ -1,3 +1,6 @@
 [submodule "Bemusilization"]
 	path = Bemusilization
 	url = https://github.com/MikiraSora/Bemusilization
+[submodule "csbms-parser"]
+	path = csbms-parser
+	url = https://github.com/MikiraSora/csbms-parser
