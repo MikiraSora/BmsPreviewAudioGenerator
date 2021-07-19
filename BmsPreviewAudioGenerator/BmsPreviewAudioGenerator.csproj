@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="bass.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

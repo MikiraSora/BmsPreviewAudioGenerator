@@ -210,7 +210,7 @@ namespace BmsPreviewAudioGenerator
                     return true;
                 }
 
-                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder() as ChartDecoder : new BMSDecoder();
+                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder(LongNote.TYPE_LONGNOTE) as ChartDecoder : new BMSDecoder();
                 var model = chart.decode(bms_file_path);
                 var notes = model.getAllTimeLines()
                     .Select(x => 
