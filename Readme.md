@@ -54,6 +54,10 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `fade_out` : 在音频末尾添加淡出效果,其他同上.
 
+* `start_from_first` : (开关)从第一个音开始录,无法和`start`参数同时使用.
+
+* `end_to_last` : (开关)录完最后一个音就停止,无法和`end`参数同时使用.
+
 * `no_skip` : 禁止跳过检查
 
 ### 计划
