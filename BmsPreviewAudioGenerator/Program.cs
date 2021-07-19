@@ -47,6 +47,8 @@ namespace BmsPreviewAudioGenerator
             var bms = CommandLine.TryGetOptionValue<string>("bms", out var b) ? b : null;
             var batch = CommandLine.ContainSwitchOption("batch");
             var fc = CommandLine.ContainSwitchOption("fast_clip");
+            var sff = CommandLine.ContainSwitchOption("start_from_first");
+            var etl = CommandLine.ContainSwitchOption("end_to_last");
             var cv = CommandLine.ContainSwitchOption("check_valid");
             var ns = CommandLine.ContainSwitchOption("no_skip");
             var rm = CommandLine.ContainSwitchOption("rm");
@@ -81,7 +83,7 @@ namespace BmsPreviewAudioGenerator
                 var dir = target_directories[i];
                 try
                 {
-                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, no_skip:ns, fast_clip: fc,check_vaild: cv, fade_in: fi, fade_out: fo))
+                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, no_skip: ns, fast_clip: fc, check_vaild: cv, fade_in: fi, fade_out: fo, start_from_first: sff, end_to_last: etl))
                         failed_paths.Add(dir);
                 }
                 catch (Exception ex)
@@ -170,7 +172,9 @@ namespace BmsPreviewAudioGenerator
             int fade_in = 0,
             bool check_vaild = false,
             bool fast_clip = false,
-            bool no_skip = false)
+            bool no_skip = false,
+            bool start_from_first = false,
+            bool end_to_last = false)
         {
             var created_audio_handles = new HashSet<int>();
             var sync_record = new HashSet<int>();
@@ -192,7 +196,7 @@ namespace BmsPreviewAudioGenerator
 
                 var content = File.ReadAllText(bms_file_path);
 
-                if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content))&&!no_skip)
+                if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content)) && !no_skip)
                 {
                     Console.WriteLine("This bms contains preview audio file, skiped.");
                     return true;
@@ -237,6 +241,15 @@ namespace BmsPreviewAudioGenerator
                 var actual_end_time = string.IsNullOrWhiteSpace(end_time) ? full_audio_duration : (end_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(end_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(end_time)));
                 var actual_start_time = string.IsNullOrWhiteSpace(start_time) ? TimeSpan.Zero : (start_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(start_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(start_time)));
 
+                if (start_from_first)
+                    actual_start_time = mixer_events.OfType<AudioMixEvent>().FirstOrDefault().Time;
+
+                if (end_to_last)
+                {
+                    var e = mixer_events.OfType<AudioMixEvent>().LastOrDefault();
+                    actual_end_time = e.Time + e.Duration;
+                }
+
                 actual_start_time = actual_start_time < TimeSpan.Zero ? TimeSpan.Zero : actual_start_time;
                 actual_start_time = actual_start_time > full_audio_duration ? full_audio_duration : actual_start_time;
 
@@ -250,7 +263,7 @@ namespace BmsPreviewAudioGenerator
                     actual_start_time = t;
                 }
 
-                Console.WriteLine($"Actual clip({(int)full_audio_duration.TotalMilliseconds}ms):{(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
+                Console.WriteLine($"Actual clip(total {(int)full_audio_duration.TotalMilliseconds}ms):{(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
 
                 #endregion
 
@@ -269,7 +282,7 @@ namespace BmsPreviewAudioGenerator
                 var effect = new VolumeParameters();
                 var fx = Bass.ChannelSetFX(mixer, effect.FXType, 0);
 
-                if (fade_in!=0)
+                if (fade_in != 0)
                 {
                     var fade_in_evt = new FadeMixEvent(false, fade_in)
                     {
