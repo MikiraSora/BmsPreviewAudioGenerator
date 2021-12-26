@@ -8,10 +8,12 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace BmsPreviewAudioGenerator
 {
@@ -26,6 +28,9 @@ namespace BmsPreviewAudioGenerator
 
         static void Main(string[] args)
         {
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
 
             if (!Bass.Init())
