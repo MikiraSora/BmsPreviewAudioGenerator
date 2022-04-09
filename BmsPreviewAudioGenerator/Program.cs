@@ -257,11 +257,12 @@ namespace BmsPreviewAudioGenerator
                         AudioHandle = audioHandle
                     };
                 }));
-
+                /*
                 foreach (var @event in bms_evemts)
                 {
                     Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds / 1000.0f}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
                 }
+                */
                 /*
                 foreach (var @event in mixer_events)
                 {
