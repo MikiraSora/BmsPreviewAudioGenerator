@@ -8,10 +8,12 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace BmsPreviewAudioGenerator
 {
@@ -38,6 +40,9 @@ namespace BmsPreviewAudioGenerator
 
         static void Main(string[] args)
         {
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
 
             if (!Bass.Init())
@@ -210,7 +215,7 @@ namespace BmsPreviewAudioGenerator
                     return true;
                 }
 
-                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder() as ChartDecoder : new BMSDecoder();
+                var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder(LongNote.TYPE_LONGNOTE) as ChartDecoder : new BMSDecoder();
                 var model = chart.decode(bms_file_path);
                 var notes = model.getAllTimeLines()
                     .SelectMany(x =>
