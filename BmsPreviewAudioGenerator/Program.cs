@@ -45,6 +45,12 @@ namespace BmsPreviewAudioGenerator
 
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
 
+            if (args.Length == 0)
+            {
+                Console.WriteLine($"Program Usage : https://github.com/MikiraSora/BmsPreviewAudioGenerator");
+                return;
+            }
+
             if (!Bass.Init())
             {
                 Console.WriteLine($"Init BASS failed:{Bass.LastError}");
