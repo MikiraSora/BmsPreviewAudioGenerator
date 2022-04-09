@@ -213,15 +213,13 @@ namespace BmsPreviewAudioGenerator
                 var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder() as ChartDecoder : new BMSDecoder();
                 var model = chart.decode(bms_file_path);
                 var notes = model.getAllTimeLines()
-                    .Select(x => 
+                    .SelectMany(x =>
                         x.getBackGroundNotes().Concat(x.getNotes()))
-                    .SelectMany(x => x)
                     .OfType<Note>()
-                    .Select(x => {
-                        return x.getLayeredNotes().Concat(new[] { x });
+                    .SelectMany(x =>
+                    {
+                        return x.getLayeredNotes().Append(x);
                     })
-                    .SelectMany(x => x)
-                    .OfType<Note>()
                     .OrderBy(x => x.getMicroTime())
                     .Distinct()
                     .ToArray();
@@ -262,7 +260,7 @@ namespace BmsPreviewAudioGenerator
 
                 foreach (var @event in bms_evemts)
                 {
-                    Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
+                    Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds / 1000.0f}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
                 }
                 /*
                 foreach (var @event in mixer_events)
