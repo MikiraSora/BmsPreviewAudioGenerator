@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"H:\\LR2Songs\\bofu2015\\SIAKON\\[5argon] Maid Battle (Team SIAKON)\" -check_valid -fast_clip -no_skip"
+      "commandLineArgs": "-path=\"F:\\[BGAPARTY_inukoro]tezuka_nini_ogg\" -check_valid -fast_clip -no_skip"
     }
   }
 }
