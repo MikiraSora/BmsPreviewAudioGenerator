@@ -6,7 +6,7 @@
 此工具可以指定(或批量)生成bms预览音频文件并放置到对应的bms文件夹里。
 通常用于应付一些bms游戏不支持自动播放预览或bms文件不钦定预览文件([PREVIEW命令](https://github.com/exch-bms2/beatoraja/wiki/%E6%A5%BD%E6%9B%B2%E8%A3%BD%E4%BD%9C%E8%80%85%E5%90%91%E3%81%91%E8%B3%87%E6%96%99#bms%E6%8B%A1%E5%BC%B5%E5%AE%9A%E7%BE%A9))的情况。
 <br/>
-本项目的BMS解析基于第三方项目[JLChnToZ/Bemusilization](https://github.com/JLChnToZ/Bemusilization)
+本项目的BMS解析基于第三方项目~~[JLChnToZ/Bemusilization](https://github.com/JLChnToZ/Bemusilization)~~,[jbms-parser](https://github.com/MikiraSora/csbms-parser)(beatoraja同款)
 <br/>
 此工具并不会改动bms文件内容。
 ### **用法**
