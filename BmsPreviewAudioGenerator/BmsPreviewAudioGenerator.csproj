@@ -1,41 +1,39 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <Platforms>AnyCPU;x86;x64</Platforms>
-    <Version>0.8.8</Version>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="ManagedBass" Version="2.0.4" />
-    <PackageReference Include="ManagedBass.Enc" Version="2.0.0" />
-    <PackageReference Include="ManagedBass.Fx" Version="2.0.1" />
-    <PackageReference Include="ManagedBass.Mix" Version="2.1.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="bass.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="bassenc.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="bassenc_ogg.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="bassmix.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>netcoreapp3.1</TargetFramework>
+		<Platforms>AnyCPU;x86;x64</Platforms>
+		<Version>0.8.8</Version>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="ManagedBass" Version="3.1.1" />
+		<PackageReference Include="ManagedBass.Enc" Version="3.1.1" />
+		<PackageReference Include="ManagedBass.Fx" Version="3.1.1" />
+		<PackageReference Include="ManagedBass.Mix" Version="3.1.1" />
+		<PackageReference Include="ManagedBass.Opus" Version="3.1.1" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="bass.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="bassopus.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="bassenc.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="bassenc_opus.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="bassmix.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 </Project>

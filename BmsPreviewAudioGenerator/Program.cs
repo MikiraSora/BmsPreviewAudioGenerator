@@ -4,6 +4,7 @@ using ManagedBass;
 using ManagedBass.Enc;
 using ManagedBass.Fx;
 using ManagedBass.Mix;
+using ManagedBass.Opus;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -252,7 +253,7 @@ namespace BmsPreviewAudioGenerator
                     .ToArray();
 
                 //init mixer
-                mixer = BassMix.CreateMixerStream(44100, 2, BassFlags.Decode | BassFlags.MixerNonStop);
+                mixer = BassMix.CreateMixerStream(48000, 2, BassFlags.Decode | BassFlags.MixerNonStop);
 
                 //build triggers
                 var mixer_events = new List<MixEventBase>(bms_evemts.Select(x =>
@@ -356,7 +357,7 @@ namespace BmsPreviewAudioGenerator
                         {
                             var output_path = Path.Combine(dir_path, save_file_name);
                             Console.WriteLine($"Encoding output file path:{output_path}");
-                            encoder = BassEnc_Ogg.Start(mixer, encoder_command_line, EncodeFlags.AutoFree, output_path);
+                            encoder = BassEnc_Opus.Start(mixer, encoder_command_line, EncodeFlags.AutoFree, output_path);
                         }
                         else if (evt is AudioMixEvent audio)
                         {
