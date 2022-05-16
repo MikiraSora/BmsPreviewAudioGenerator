@@ -82,6 +82,7 @@ namespace BmsPreviewAudioGenerator
                     ".bms",
                     ".bme",
                     ".bml",
+                    ".pms",
                     ".bmson",
                 };
             }
@@ -169,7 +170,7 @@ namespace BmsPreviewAudioGenerator
 
         private static string[] EnumerateConvertableDirectories(string path)
         {
-            var result = Directory.EnumerateFiles(path, "*.bm*", SearchOption.AllDirectories).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
+            var result = Directory.EnumerateFiles(path, "*.*m*", SearchOption.AllDirectories).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
 
             return result;
         }
@@ -207,7 +208,7 @@ namespace BmsPreviewAudioGenerator
                 if (!Directory.Exists(dir_path))
                     throw new Exception($"Directory {dir_path} not found.");
 
-                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.bm*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
+                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.*m*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
 
                 if (!File.Exists(bms_file_path))
                     throw new Exception($"BMS file {bms_file_path} not found.");
@@ -414,7 +415,7 @@ namespace BmsPreviewAudioGenerator
 
             int LoadAudio(string item2)
             {
-                var handle = Bass.CreateStream(item2, 0, 0, BassFlags.Decode | BassFlags.Float);
+                var handle = BassOpus.CreateStream(item2, 0, 0, BassFlags.Decode | BassFlags.Float);
 
                 created_audio_handles.Add(handle);
 
