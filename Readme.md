@@ -1,3 +1,6 @@
+Now it only converts from opus to opus preview(.ogg container), also just added pms in the support_extend_format
+
+---
 ## BMS预览音频文件生成器
 ---
 - [**Usage Guide (English)**](https://github.com/wcko87/beatoraja-english-guide/discussions/33)
