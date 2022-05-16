@@ -10,18 +10,14 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Costura.Fody" Version="5.7.0">
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		  <PrivateAssets>all</PrivateAssets>
-		</PackageReference>
-		<PackageReference Include="ManagedBass" Version="3.1.1" />
-		<PackageReference Include="ManagedBass.Enc" Version="3.1.1" />
-		<PackageReference Include="ManagedBass.Fx" Version="3.1.1" />
-		<PackageReference Include="ManagedBass.Mix" Version="3.1.1" />
-		<PackageReference Include="ManagedBass.Opus" Version="3.1.1" />
+		<PackageReference Include="ManagedBass" Version="3.1.1"/>
+		<PackageReference Include="ManagedBass.Enc" Version="3.1.1"/>
+		<PackageReference Include="ManagedBass.Fx" Version="3.1.1"/>
+		<PackageReference Include="ManagedBass.Mix" Version="3.1.1"/>
+		<PackageReference Include="ManagedBass.Opus" Version="3.1.1"/>
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj" />
+		<ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj"/>
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="bass.dll">
