@@ -1,4 +1,5 @@
-﻿using BmsPreviewAudioGenerator.MixEvent;
+﻿using BmsPreviewAudioGenerator.Encoders;
+using BmsPreviewAudioGenerator.MixEvent;
 using CSBMSParser;
 using ManagedBass;
 using ManagedBass.Enc;
@@ -14,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 
 namespace BmsPreviewAudioGenerator
@@ -66,7 +68,9 @@ namespace BmsPreviewAudioGenerator
             var et = CommandLine.TryGetOptionValue<string>("end", out var e) ? e : null;
             var fo = CommandLine.TryGetOptionValue<int>("fade_out", out var foo) ? foo : 0;
             var fi = CommandLine.TryGetOptionValue<int>("fade_in", out var fii) ? fii : 0;
+            var enc = CommandLine.TryGetOptionValue<SupportEncodingType>("encoder", out var encoding) ? encoding : SupportEncodingType.Any;
             var sn = CommandLine.TryGetOptionValue<string>("save_name", out var sw) ? sw : "preview_auto_generator.ogg";
+            var eopt = CommandLine.TryGetOptionValue<string>("encoder_option_base64", out var eob) ? Encoding.UTF8.GetString(Convert.FromBase64String(eob)) : "";
             var path = CommandLine.TryGetOptionValue<string>("path", out var p) ? p : throw new Exception("MUST type a path.");
             var bms = CommandLine.TryGetOptionValue<string>("bms", out var b) ? b : null;
             var batch = CommandLine.ContainSwitchOption("batch");
@@ -106,7 +110,15 @@ namespace BmsPreviewAudioGenerator
                 var dir = target_directories[i];
                 try
                 {
-                    if (!GeneratePreviewAudio(dir, bms, st, et, save_file_name: sn, no_skip: ns, fast_clip: fc, check_vaild: cv, fade_in: fi, fade_out: fo))
+                    if (!GeneratePreviewAudio(dir, bms, st, et,
+                        save_file_name: sn,
+                        no_skip: ns,
+                        fast_clip: fc,
+                        check_vaild: cv,
+                        fade_in: fi,
+                        fade_out: fo,
+                        encoding_type: enc,
+                        encoder_command_line: eopt))
                         failed_paths.Add(dir);
                 }
                 catch (Exception ex)
@@ -195,7 +207,8 @@ namespace BmsPreviewAudioGenerator
             int fade_in = 0,
             bool check_vaild = false,
             bool fast_clip = false,
-            bool no_skip = false)
+            bool no_skip = false,
+            SupportEncodingType encoding_type = SupportEncodingType.Any)
         {
             var created_audio_handles = new HashSet<int>();
             var sync_record = new HashSet<int>();
@@ -313,7 +326,7 @@ namespace BmsPreviewAudioGenerator
                 mixer_events.Add(new StartMixEvent() { Time = actual_start_time });
 
                 //save encoder handle
-                int encoder = 0;
+                IAudioEncoder encoder = default;
 
                 #region apply fade in/out
 
@@ -348,17 +361,30 @@ namespace BmsPreviewAudioGenerator
 
                     sync_record.Add(Bass.ChannelSetSync(mixer, SyncFlags.Position | SyncFlags.Mixtime, trigger_position, (nn, mm, ss, ll) =>
                     {
-                        if (evt is StopMixEvent && encoder != 0)
+                        if (evt is StopMixEvent && (encoder?.IsEncoding ?? false))
                         {
                             Bass.ChannelStop(mixer);
-                            BassEnc.EncodeStop(encoder);
-                            encoder = 0;
+                            encoder.EndEncode();
                         }
-                        else if (evt is StartMixEvent && encoder == 0)
+                        else if (evt is StartMixEvent && !(encoder?.IsEncoding ?? false))
                         {
                             var output_path = Path.Combine(dir_path, save_file_name);
-                            Console.WriteLine($"Encoding output file path:{output_path}");
-                            encoder = BassEnc_Opus.Start(mixer, encoder_command_line, EncodeFlags.AutoFree, output_path);
+
+                            encoder = encoding_type == 0 ? default : AudioEncoderFactory.CreateAudioEncoder(encoding_type);
+                            encoder = encoder ?? AudioEncoderFactory.CreateAudioEncoder(output_path);
+
+                            Console.WriteLine($"Encoding output file path as {encoder?.GetType().Name} : {output_path}");
+
+                            if (encoder is null)
+                                throw new Exception($"Can't create encoder encodingType = {encoding_type}, skipped.");
+
+                            var encParam = new EncodeParam()
+                            {
+                                EncodeOption = encoder_command_line,
+                                EncodeOutputFilePath = output_path,
+                                MixHandle = mixer
+                            };
+                            encoder.BeginEncode(encParam);
                         }
                         else if (evt is AudioMixEvent audio)
                         {
@@ -413,9 +439,20 @@ namespace BmsPreviewAudioGenerator
                 #endregion
             }
 
-            int LoadAudio(string item2)
+            int LoadAudio(string audioFilePath)
             {
-                var handle = BassOpus.CreateStream(item2, 0, 0, BassFlags.Decode | BassFlags.Float);
+                if (!File.Exists(audioFilePath))
+                    throw new Exception($"Audio file not found: {audioFilePath}");
+
+                var buffer = File.ReadAllBytes(audioFilePath);
+
+                //var handle = BassOpus.CreateStream(buffer, 0, 0, BassFlags.Decode | BassFlags.Float);
+                var handle = Bass.CreateStream(buffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
+                if (handle == 0)
+                    handle = BassOpus.CreateStream(buffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
+
+                if (handle == 0)
+                    throw new Exception($"Can't decode audio file : {audioFilePath}");
 
                 created_audio_handles.Add(handle);
 

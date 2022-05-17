@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"F:\\[BGAPARTY_inukoro]tezuka_nini_ogg\" -check_valid -fast_clip -no_skip"
+      "commandLineArgs": "-path=\"F:\\ukiyoe_ogg\" -check_valid -fast_clip -no_skip -encoder=mp3"
     }
   }
 }
