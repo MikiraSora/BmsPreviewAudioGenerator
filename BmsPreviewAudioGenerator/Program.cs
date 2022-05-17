@@ -4,6 +4,7 @@ using ManagedBass;
 using ManagedBass.Enc;
 using ManagedBass.Fx;
 using ManagedBass.Mix;
+using ManagedBass.Opus;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -81,6 +82,7 @@ namespace BmsPreviewAudioGenerator
                     ".bms",
                     ".bme",
                     ".bml",
+                    ".pms",
                     ".bmson",
                 };
             }
@@ -168,7 +170,7 @@ namespace BmsPreviewAudioGenerator
 
         private static string[] EnumerateConvertableDirectories(string path)
         {
-            var result = Directory.EnumerateFiles(path, "*.bm*", SearchOption.AllDirectories).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
+            var result = Directory.EnumerateFiles(path, "*.*m*", SearchOption.AllDirectories).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).Select(x => Path.GetDirectoryName(x)).Distinct().ToArray();
 
             return result;
         }
@@ -206,7 +208,7 @@ namespace BmsPreviewAudioGenerator
                 if (!Directory.Exists(dir_path))
                     throw new Exception($"Directory {dir_path} not found.");
 
-                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.bm*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
+                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.*m*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
 
                 if (!File.Exists(bms_file_path))
                     throw new Exception($"BMS file {bms_file_path} not found.");
@@ -252,7 +254,7 @@ namespace BmsPreviewAudioGenerator
                     .ToArray();
 
                 //init mixer
-                mixer = BassMix.CreateMixerStream(44100, 2, BassFlags.Decode | BassFlags.MixerNonStop);
+                mixer = BassMix.CreateMixerStream(48000, 2, BassFlags.Decode | BassFlags.MixerNonStop);
 
                 //build triggers
                 var mixer_events = new List<MixEventBase>(bms_evemts.Select(x =>
@@ -356,7 +358,7 @@ namespace BmsPreviewAudioGenerator
                         {
                             var output_path = Path.Combine(dir_path, save_file_name);
                             Console.WriteLine($"Encoding output file path:{output_path}");
-                            encoder = BassEnc_Ogg.Start(mixer, encoder_command_line, EncodeFlags.AutoFree, output_path);
+                            encoder = BassEnc_Opus.Start(mixer, encoder_command_line, EncodeFlags.AutoFree, output_path);
                         }
                         else if (evt is AudioMixEvent audio)
                         {
@@ -413,7 +415,7 @@ namespace BmsPreviewAudioGenerator
 
             int LoadAudio(string item2)
             {
-                var handle = Bass.CreateStream(item2, 0, 0, BassFlags.Decode | BassFlags.Float);
+                var handle = BassOpus.CreateStream(item2, 0, 0, BassFlags.Decode | BassFlags.Float);
 
                 created_audio_handles.Add(handle);
 
