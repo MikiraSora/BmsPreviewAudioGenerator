@@ -259,7 +259,8 @@ namespace BmsPreviewAudioGenerator
                     })
                     .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault()))
                     .Select(x => (x.resourceId, LoadAudio(x.Item2)))
-                    .ToDictionary(x => x.resourceId, x => x.Item2);
+                    .Where(x => x.Item2 is int)
+                    .ToDictionary(x => x.resourceId, x => x.Item2.Value);
 
                 var bms_evemts = notes
                     .Where(x => audio_map.ContainsKey(x.getWav()))//filter
@@ -439,7 +440,7 @@ namespace BmsPreviewAudioGenerator
                 #endregion
             }
 
-            int LoadAudio(string audioFilePath)
+            int? LoadAudio(string audioFilePath)
             {
                 if (!File.Exists(audioFilePath))
                     throw new Exception($"Audio file not found: {audioFilePath}");
@@ -452,7 +453,7 @@ namespace BmsPreviewAudioGenerator
                     handle = BassOpus.CreateStream(buffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
 
                 if (handle == 0)
-                    throw new Exception($"Can't decode audio file : {audioFilePath}");
+                    return null;
 
                 created_audio_handles.Add(handle);
 
