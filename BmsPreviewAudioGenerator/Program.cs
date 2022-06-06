@@ -77,6 +77,7 @@ namespace BmsPreviewAudioGenerator
             var fc = CommandLine.ContainSwitchOption("fast_clip");
             var cv = CommandLine.ContainSwitchOption("check_valid");
             var ns = CommandLine.ContainSwitchOption("no_skip");
+            var ig = CommandLine.ContainSwitchOption("ignore_audio_missing");
             var rm = CommandLine.ContainSwitchOption("rm");
 
             if (CommandLine.ContainSwitchOption("support_extend_format"))
@@ -117,6 +118,7 @@ namespace BmsPreviewAudioGenerator
                         check_vaild: cv,
                         fade_in: fi,
                         fade_out: fo,
+                        ignore_audio_missing: ig,
                         encoding_type: enc,
                         encoder_command_line: eopt))
                         failed_paths.Add(dir);
@@ -208,7 +210,8 @@ namespace BmsPreviewAudioGenerator
             bool check_vaild = false,
             bool fast_clip = false,
             bool no_skip = false,
-            SupportEncodingType encoding_type = SupportEncodingType.Any)
+            SupportEncodingType encoding_type = SupportEncodingType.Any,
+            bool ignore_audio_missing = false)
         {
             var created_audio_handles = new HashSet<int>();
             var sync_record = new HashSet<int>();
@@ -257,8 +260,8 @@ namespace BmsPreviewAudioGenerator
                         resourceId = i,
                         dataPath = x
                     })
-                    .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault()))
-                    .Select(x => (x.resourceId, LoadAudio(x.Item2)))
+                    .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault(), x.dataPath))
+                    .Select(x => (x.resourceId, LoadAudio(x.Item2, x.dataPath)))
                     .Where(x => x.Item2 is int)
                     .ToDictionary(x => x.resourceId, x => x.Item2.Value);
 
@@ -440,10 +443,16 @@ namespace BmsPreviewAudioGenerator
                 #endregion
             }
 
-            int? LoadAudio(string audioFilePath)
+            int? LoadAudio(string audioFilePath, string hintDataPath = default)
             {
                 if (!File.Exists(audioFilePath))
-                    throw new Exception($"Audio file not found: {audioFilePath}");
+                {
+                    if (!ignore_audio_missing)
+                        throw new Exception($"Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath})");
+
+                    Console.WriteLine($"Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath}) , but ignore it.");
+                    return default;
+                }
 
                 var buffer = File.ReadAllBytes(audioFilePath);
 
@@ -453,7 +462,7 @@ namespace BmsPreviewAudioGenerator
                     handle = BassOpus.CreateStream(buffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
 
                 if (handle == 0)
-                    return null;
+                    return default;
 
                 created_audio_handles.Add(handle);
 
