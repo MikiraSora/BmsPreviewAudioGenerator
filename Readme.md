@@ -54,11 +54,13 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `fade_out` : 在音频末尾添加淡出效果,其他同上.
 
-* `no_skip` : 禁止跳过检查
+* `no_skip` :(开关) 禁止跳过检查
 
 * `encoder` : 钦定生成的预览音频的音频文件格式，目前支持`mp3`/`wav`/`ogg`/`any`,不选默认`any`参数(即由文件扩展名自动选择)
 
 * `encoder_option_base64` : 可选参数，能对指定的encoder进行详细的微调，注意此参数需要的是值的Base64形式
+
+* `ignore_audio_missing` :(开关)  如果需要,可以添加这个来跳过找不到音频文件错误
  
 ### 计划
 * 可添加歌曲和作者信息进音频标签数据里，以及preview图片文件
