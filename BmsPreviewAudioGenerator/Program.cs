@@ -77,7 +77,7 @@ namespace BmsPreviewAudioGenerator
             var fc = CommandLine.ContainSwitchOption("fast_clip");
             var cv = CommandLine.ContainSwitchOption("check_valid");
             var ns = CommandLine.ContainSwitchOption("no_skip");
-            var ig = CommandLine.ContainSwitchOption("ignore_audio_missing");
+            var cam = CommandLine.ContainSwitchOption("check_audio_missing");
             var rm = CommandLine.ContainSwitchOption("rm");
 
             if (CommandLine.ContainSwitchOption("support_extend_format"))
@@ -103,7 +103,7 @@ namespace BmsPreviewAudioGenerator
 
             var target_directories = batch ? EnumerateConvertableDirectories(path) : new[] { path };
 
-            HashSet<string> failed_paths = new HashSet<string>();
+            var failed_paths = new List<(string path, string reason)>();
 
             for (int i = 0; i < target_directories.Length; i++)
             {
@@ -118,14 +118,14 @@ namespace BmsPreviewAudioGenerator
                         check_vaild: cv,
                         fade_in: fi,
                         fade_out: fo,
-                        ignore_audio_missing: ig,
+                        ignore_audio_missing: !cam,
                         encoding_type: enc,
                         encoder_command_line: eopt))
-                        failed_paths.Add(dir);
+                        failed_paths.Add((dir, default));
                 }
                 catch (Exception ex)
                 {
-                    failed_paths.Add(dir);
+                    failed_paths.Add((dir, ex.Message));
                     Console.WriteLine($"Failed.\n{ex.Message}\n{ex.StackTrace}");
                 }
 
@@ -143,8 +143,8 @@ namespace BmsPreviewAudioGenerator
             }
 
             Console.WriteLine($"\n\n\nGenerate failed list({failed_paths.Count}):");
-            foreach (var fp in failed_paths)
-                Console.WriteLine(fp);
+            foreach ((var failedFilePath, var reason) in failed_paths)
+                Console.WriteLine($"{failedFilePath}{(reason != null ? $"\t({reason})" : string.Empty)}");
 
             Bass.Free();
         }
@@ -421,11 +421,6 @@ namespace BmsPreviewAudioGenerator
 
                 Console.WriteLine("Success!");
                 return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed.\n{ex.Message}\n{ex.StackTrace}");
-                return false;
             }
             finally
             {

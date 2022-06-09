@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-fade_in=\"2000\" -fade_out=\"2000\" -path=\"F:\\bms-20220606T170829Z-001\\bms\" -start=\"50%\" -end=\"75%\" -batch -no_skip -ignore_audio_missing -fast_clip -check_vaild -support_extend_format -encoder=ogg"
+      "commandLineArgs": "-fade_in=\"2000\" -fade_out=\"2000\" -path=\"F:\\bms-20220606T170829Z-001\\bms\" -start=\"50%\" -end=\"75%\" -batch -no_skip -fast_clip -check_vaild -support_extend_format -encoder=ogg"
     }
   }
 }
