@@ -60,7 +60,7 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `encoder_option_base64` : 可选参数，能对指定的encoder进行详细的微调，注意此参数需要的是值的Base64形式
 
-* `ignore_audio_missing` :(开关)  如果需要,可以添加这个来跳过找不到音频文件错误
+* `check_audio_missing` :(开关) 如果遇到音频文件缺失则报错并跳过此生成，默认忽略缺失的音频文件
  
 ### 计划
 * 可添加歌曲和作者信息进音频标签数据里，以及preview图片文件
