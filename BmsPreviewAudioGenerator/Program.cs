@@ -287,19 +287,20 @@ namespace BmsPreviewAudioGenerator
                         AudioHandle = audioHandle
                     };
                 }));
+
+				/*
                 foreach (var @event in bms_evemts)
                 {
                     Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds / 1000.0f}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
                 }
-                /*
                 foreach (var @event in mixer_events)
                 {
                     Console.WriteLine($"{@event.GetType().Name.Replace("MixEvent", "")} {@event.Time} {@event switch { AudioMixEvent a=> " + "+ (int)a.Duration.TotalMilliseconds + "   " + wavList[a.WavId],_ => "",}}");
                 }
                 */
-                #region Calculate and Adjust StartTime/EndTime
+				#region Calculate and Adjust StartTime/EndTime
 
-                var full_audio_duration = mixer_events.OfType<AudioMixEvent>().Max(x => x.Duration + x.Time).Add(TimeSpan.FromSeconds(1));
+				var full_audio_duration = mixer_events.OfType<AudioMixEvent>().Max(x => x.Duration + x.Time).Add(TimeSpan.FromSeconds(1));
                 var actual_end_time = string.IsNullOrWhiteSpace(end_time) ? full_audio_duration : (end_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(end_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(end_time)));
                 var actual_start_time = string.IsNullOrWhiteSpace(start_time) ? TimeSpan.Zero : (start_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(start_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(start_time)));
 
