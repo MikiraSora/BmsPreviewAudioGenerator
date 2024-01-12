@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"F:\\こまったぬの唄\\1\" -no_skip -save_name=\"preview_auto_generator.ogg\" -support_extend_format -fade_in=\"1000\" -fade_out=\"2000\""
+      "commandLineArgs": "-path=\"D:\\[shimizushi]The Crack of Dawn[ogg]\" -no_skip -save_name=\\\"preview_auto_generator.ogg\\\" -support_extend_format"
     }
   }
 }
