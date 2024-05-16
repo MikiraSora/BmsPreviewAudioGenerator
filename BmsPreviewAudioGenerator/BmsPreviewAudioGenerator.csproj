@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net7.0</TargetFrameworks>
 		<Platforms>AnyCPU;x86;x64</Platforms>
-    <Version>0.9.9</Version>
+    <Version>0.9.9.5</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>

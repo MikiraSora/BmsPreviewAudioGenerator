@@ -239,6 +239,35 @@ namespace BmsPreviewAudioGenerator
                     return true;
                 }
 
+                string searchAudioFile(string audioPathName)
+                {
+                    //比如会遇到 “key.ogg”
+                    //比如会遇到 “ogg/key.ogg”
+                    //比如会遇到 “ogg/key.mp3”但只有key.wav
+                    //比如会遇到 “ogg/key”
+
+                    var path = dir_path;
+                    var split = audioPathName.Split('/');
+
+                    if (split.Length > 1)
+                    {
+                        audioPathName = split.LastOrDefault();
+                        for (int i = 0; i < split.Length - 1; i++)
+                            path = Path.Combine(path, split[i]);
+                    }
+
+                    var actualSearchPattern = $"{Path.GetFileNameWithoutExtension(audioPathName)}.*";
+
+                    var filePath = Directory.EnumerateFiles(path, actualSearchPattern).Where(x =>
+                    {
+                        var ext = Path.GetExtension(x);
+                        return support_extension_names.Contains(ext.ToLower());
+                    }).FirstOrDefault();
+                    if (filePath is null)
+                        Console.WriteLine($".bms require audio file {audioPathName} is not found, ignored. search pattern: {Path.Combine(path, actualSearchPattern)}");
+                    return filePath;
+                }
+
                 var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder(LongNote.TYPE_LONGNOTE) as ChartDecoder : new BMSDecoder();
                 var model = chart.decode(bms_file_path);
                 var notes = model.getAllTimeLines()
@@ -260,10 +289,13 @@ namespace BmsPreviewAudioGenerator
                         resourceId = i,
                         dataPath = x
                     })
-                    .Select(x => (x.resourceId, Directory.EnumerateFiles(dir_path, $"{Path.GetFileNameWithoutExtension(x.dataPath)}.*").FirstOrDefault(), x.dataPath))
+                    .Select(x => (x.resourceId, searchAudioFile(x.dataPath), x.dataPath))
                     .Select(x => (x.resourceId, LoadAudio(x.Item2, x.dataPath)))
                     .Where(x => x.Item2 is int)
                     .ToDictionary(x => x.resourceId, x => x.Item2.Value);
+
+                if (audio_map.Count == 0)
+                    throw new Exception("audio_map is empty");
 
                 var bms_evemts = notes
                     .Where(x => audio_map.ContainsKey(x.getWav()))//filter
@@ -278,17 +310,24 @@ namespace BmsPreviewAudioGenerator
                 {
                     var wavId = x.getWav();
                     var audioHandle = audio_map[wavId];
+                    var audioLen = Bass.ChannelGetLength(audioHandle);
+                    if (audioLen < 0)
+                    {
+                        var audioName = wavList.ElementAtOrDefault(wavId);
+                        Console.WriteLine($"Can't load and parse wavId {wavId} (becuase audioLen < 0), audioName = {audioName}, ignored.");
+                        return default;
+                    }
                     return new AudioMixEvent()
                     {
                         Time = TimeSpan.FromMilliseconds(x.getMilliTime()),
-                        Duration = TimeSpan.FromSeconds(Bass.ChannelBytes2Seconds(audioHandle, Bass.ChannelGetLength(audioHandle))),
+                        Duration = TimeSpan.FromSeconds(Bass.ChannelBytes2Seconds(audioHandle, audioLen)),
                         PlayOffset = TimeSpan.Zero,
                         WavId = wavId,
                         AudioHandle = audioHandle
                     };
-                }));
+                }).OfType<AudioMixEvent>());
 
-				/*
+                /*
                 foreach (var @event in bms_evemts)
                 {
                     Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds / 1000.0f}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
@@ -298,9 +337,13 @@ namespace BmsPreviewAudioGenerator
                     Console.WriteLine($"{@event.GetType().Name.Replace("MixEvent", "")} {@event.Time} {@event switch { AudioMixEvent a=> " + "+ (int)a.Duration.TotalMilliseconds + "   " + wavList[a.WavId],_ => "",}}");
                 }
                 */
-				#region Calculate and Adjust StartTime/EndTime
 
-				var full_audio_duration = mixer_events.OfType<AudioMixEvent>().Max(x => x.Duration + x.Time).Add(TimeSpan.FromSeconds(1));
+                if (mixer_events.Count == 0)
+                    throw new Exception("mixer_events is empty");
+
+                #region Calculate and Adjust StartTime/EndTime
+
+                var full_audio_duration = mixer_events.OfType<AudioMixEvent>().Max(x => x.Duration + x.Time).Add(TimeSpan.FromSeconds(1));
                 var actual_end_time = string.IsNullOrWhiteSpace(end_time) ? full_audio_duration : (end_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(end_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(end_time)));
                 var actual_start_time = string.IsNullOrWhiteSpace(start_time) ? TimeSpan.Zero : (start_time.EndsWith("%") ? TimeSpan.FromMilliseconds(float.Parse(start_time.TrimEnd('%')) / 100.0f * full_audio_duration.TotalMilliseconds) : TimeSpan.FromMilliseconds(int.Parse(start_time)));
 
@@ -444,7 +487,7 @@ namespace BmsPreviewAudioGenerator
                     if (!ignore_audio_missing)
                         throw new Exception($"Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath})");
 
-                    Console.WriteLine($"Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath}) , but ignore it.");
+                    Console.WriteLine($"Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath}) , ignored.");
                     return default;
                 }
 
