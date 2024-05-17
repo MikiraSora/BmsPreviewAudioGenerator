@@ -17,6 +17,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using Ude;
 
 namespace BmsPreviewAudioGenerator
 {
@@ -45,6 +46,7 @@ namespace BmsPreviewAudioGenerator
         {
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             Console.WriteLine($"Program version:{typeof(Program).Assembly.GetName().Version}");
 
@@ -231,7 +233,8 @@ namespace BmsPreviewAudioGenerator
 
                 Console.WriteLine($"BMS file path:{bms_file_path}");
 
-                var content = File.ReadAllText(bms_file_path);
+                var encoding = DetectEncoding(bms_file_path);
+                var content = File.ReadAllText(bms_file_path, encoding);
 
                 if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content)) && !no_skip)
                 {
@@ -245,6 +248,7 @@ namespace BmsPreviewAudioGenerator
                     //比如会遇到 “ogg/key.ogg”
                     //比如会遇到 “ogg/key.mp3”但只有key.wav
                     //比如会遇到 “ogg/key”
+                    //甚至还会遇到 “key.ogg”但在sound子文件夹
 
                     var path = dir_path;
                     var split = audioPathName.Split('/');
@@ -258,18 +262,32 @@ namespace BmsPreviewAudioGenerator
 
                     var actualSearchPattern = $"{Path.GetFileNameWithoutExtension(audioPathName)}.*";
 
-                    var filePath = Directory.EnumerateFiles(path, actualSearchPattern).Where(x =>
+                    bool checkExt(string filePath)
                     {
-                        var ext = Path.GetExtension(x);
+                        var ext = Path.GetExtension(filePath);
                         return support_extension_names.Contains(ext.ToLower());
-                    }).FirstOrDefault();
+                    }
+
+                    var filePath = Directory.EnumerateFiles(path, actualSearchPattern).Where(checkExt).FirstOrDefault();
                     if (filePath is null)
-                        Console.WriteLine($".bms require audio file {audioPathName} is not found, ignored. search pattern: {Path.Combine(path, actualSearchPattern)}");
+                    {
+                        //try to search sub
+                        filePath = Directory.EnumerateDirectories(path)
+                            .SelectMany(subPath => Directory.EnumerateFiles(subPath, actualSearchPattern))
+                            .Where(checkExt)
+                            .FirstOrDefault();
+
+                        if (filePath is null)
+                            Console.WriteLine($".bms require audio file {audioPathName} is not found, ignored. search pattern: {Path.Combine(path, actualSearchPattern)}");
+                        else
+                            Console.WriteLine($".bms require audio file {audioPathName} is found but it is located in a sub folder: {Path.GetDirectoryName(filePath)}");
+                    }
+
                     return filePath;
                 }
 
                 var chart = bms_file_path.EndsWith(".bmson", StringComparison.InvariantCultureIgnoreCase) ? new BMSONDecoder(LongNote.TYPE_LONGNOTE) as ChartDecoder : new BMSDecoder();
-                var model = chart.decode(bms_file_path);
+                var model = chart.decode(bms_file_path, encoding);
                 var notes = model.getAllTimeLines()
                     .SelectMany(x =>
                         x.getBackGroundNotes().Concat(x.getNotes()))
@@ -505,6 +523,40 @@ namespace BmsPreviewAudioGenerator
 
                 return handle;
             }
+        }
+
+
+        private static Dictionary<string, Encoding> cachedEncoding = new();
+        private static Encoding DetectEncoding(string bms_file_path)
+        {
+            using var fs = File.OpenRead(bms_file_path);
+            var detector = new CharsetDetector();
+            detector.Feed(fs);
+            detector.DataEnd();
+
+            var charset = detector.Charset;
+
+            if (charset != null)
+            {
+                if (cachedEncoding.TryGetValue(charset, out var encoding))
+                    return encoding;
+
+                try
+                {
+                    encoding = Encoding.GetEncoding(charset);
+                    Console.WriteLine($"detected new charset:{charset}");
+                }
+                catch (Exception e)
+                {
+                    encoding = default;
+                    Console.WriteLine($"detected new charset {charset} but can't load: {e.Message}, it will return default.");
+                }
+
+                if (encoding != null)
+                    return cachedEncoding[charset] = encoding;
+            }
+
+            return Encoding.UTF8;
         }
 
         /// <summary>
