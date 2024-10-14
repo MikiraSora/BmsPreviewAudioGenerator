@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"F:\\bms\\problematic BMS\\職権を乱用するRainbow\" -no_skip -save_name=\"preview_auto_generator.ogg\" -support_extend_format\""
+      "commandLineArgs": "-path=\"F:\\BMSSP2009\" -thread=4 -batch -no_skip -support_extend_format"
     }
   }
 }

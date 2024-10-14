@@ -68,6 +68,7 @@ namespace BmsPreviewAudioGenerator
 
             ProcessBufferSize = CommandLine.TryGetOptionValue<int>("process_buffer_size", out var q) ? q : 20_000;
 
+            var th = CommandLine.TryGetOptionValue<int>("thread", out var thh) ? Math.Min(Math.Max(1, thh), Environment.ProcessorCount) : 1;
             var st = CommandLine.TryGetOptionValue<string>("start", out var s) ? s : null;
             var et = CommandLine.TryGetOptionValue<string>("end", out var e) ? e : null;
             var fo = CommandLine.TryGetOptionValue<int>("fade_out", out var foo) ? foo : 0;
@@ -83,6 +84,12 @@ namespace BmsPreviewAudioGenerator
             var ns = CommandLine.ContainSwitchOption("no_skip");
             var cam = CommandLine.ContainSwitchOption("check_audio_missing");
             var rm = CommandLine.ContainSwitchOption("rm");
+
+            if (th > 1)
+            {
+                Console.WriteLine($"program will use parallel, parallel size: {th}");
+                Bass.Configure(Configuration.UpdateThreads, th);
+            }
 
             if (CommandLine.ContainSwitchOption("support_extend_format"))
             {
@@ -107,19 +114,19 @@ namespace BmsPreviewAudioGenerator
 
             var target_directories = batch ? EnumerateConvertableDirectories(path) : new[] { path };
 
-            var failed_paths = new List<(string path, string reason)>();
-            var task_index = 0;
+            var failed_paths = new ConcurrentBag<(string path, string reason)>();
+            var consoleLogLocker = new object();
+            var i = 0;
 
-            Parallel.For(0, target_directories.Length, i =>
+            var start_time = DateTime.Now;
+
+            Parallel.For(0, target_directories.Length, new ParallelOptions()
             {
-                var current_task_index = -1;
-                lock (failed_paths)
-                {
-                    current_task_index = task_index;
-                    task_index++;
-                }
-                Console.WriteLine($"[{current_task_index}] -------\t{current_task_index}/{target_directories.Length} ({100.0f * (current_task_index + 1) / target_directories.Length:F2}%)\t-------");
-                var dir = target_directories[i];
+                MaxDegreeOfParallelism = th
+            }, current_task_index =>
+            {
+                ThreadLocalLogger.Instance.Clear();
+                var dir = target_directories[current_task_index];
                 try
                 {
                     if (!GeneratePreviewAudio(dir, bms, st, et,
@@ -131,8 +138,7 @@ namespace BmsPreviewAudioGenerator
                         fade_out: fo,
                         ignore_audio_missing: !cam,
                         encoding_type: enc,
-                        encoder_command_line: eopt,
-                        task_index: current_task_index))
+                        encoder_command_line: eopt))
                     {
                         lock (failed_paths)
                         {
@@ -146,18 +152,28 @@ namespace BmsPreviewAudioGenerator
                     {
                         failed_paths.Add((dir, ex.Message));
                     }
-                    Console.WriteLine($"[{current_task_index}] Failed.\n{ex.Message}\n{ex.StackTrace}");
+                    ThreadLocalLogger.Instance.Log($"Failed.\n{ex.Message}\n{ex.StackTrace}");
                 }
 
                 if (Bass.LastError != Errors.OK)
+                    ThreadLocalLogger.Instance.Log($"Bass get error:{Bass.LastError}...");
+
+                lock (consoleLogLocker)
                 {
-                    Console.WriteLine($"[{current_task_index}] Bass get error:{Bass.LastError}...");
+                    var completeIdx = (i++) + 1;
+                    Console.WriteLine();
+                    Console.WriteLine($"-------\t{completeIdx}/{target_directories.Length} ({100.0f * completeIdx / target_directories.Length:F2}%)\t-------");
+                    Console.Write(ThreadLocalLogger.Instance.ToString());
+                    Console.WriteLine($"-----------------------");
+                    Console.WriteLine();
                 }
             });
 
             Console.WriteLine($"\n\n\nGenerate failed list({failed_paths.Count}):");
             foreach ((var failedFilePath, var reason) in failed_paths)
                 Console.WriteLine($"{failedFilePath}{(reason != null ? $"\t({reason})" : string.Empty)}");
+
+            Console.WriteLine($"Spent time: {DateTime.Now - start_time}");
 
             Bass.Free();
         }
@@ -224,8 +240,7 @@ namespace BmsPreviewAudioGenerator
             bool fast_clip = false,
             bool no_skip = false,
             SupportEncodingType encoding_type = SupportEncodingType.Any,
-            bool ignore_audio_missing = false,
-            int task_index = -1)
+            bool ignore_audio_missing = false)
         {
             var created_audio_handles = new HashSet<int>();
             var sync_record = new HashSet<int>();
@@ -243,14 +258,14 @@ namespace BmsPreviewAudioGenerator
                 if (!File.Exists(bms_file_path))
                     throw new Exception($"BMS file {bms_file_path} not found.");
 
-                Console.WriteLine($"[{task_index}] BMS file path:{bms_file_path}");
+                ThreadLocalLogger.Instance.Log($"BMS file path:{bms_file_path}");
 
-                var encoding = DetectEncoding(bms_file_path, task_index: task_index);
+                var encoding = DetectEncoding(bms_file_path);
                 var content = File.ReadAllText(bms_file_path, encoding);
 
                 if (((check_vaild && CheckBeforeFileVaild(dir_path, save_file_name)) || CheckSkipable(dir_path, content)) && !no_skip)
                 {
-                    Console.WriteLine($"[{task_index}] This bms contains preview audio file, skiped.");
+                    ThreadLocalLogger.Instance.Log($"This bms contains preview audio file, skiped.");
                     return true;
                 }
 
@@ -290,9 +305,9 @@ namespace BmsPreviewAudioGenerator
                             .FirstOrDefault();
 
                         if (filePath is null)
-                            Console.WriteLine($"[{task_index}] .bms require audio file {audioPathName} is not found, ignored. search pattern: {Path.Combine(path, actualSearchPattern)}");
+                            ThreadLocalLogger.Instance.Log($".bms require audio file {audioPathName} is not found, ignored. search pattern: {Path.Combine(path, actualSearchPattern)}");
                         else
-                            Console.WriteLine($"[{task_index}] .bms require audio file {audioPathName} is found but it is located in a sub folder: {Path.GetDirectoryName(filePath)}");
+                            ThreadLocalLogger.Instance.Log($".bms require audio file {audioPathName} is found but it is located in a sub folder: {Path.GetDirectoryName(filePath)}");
                     }
 
                     return filePath;
@@ -320,7 +335,7 @@ namespace BmsPreviewAudioGenerator
                         dataPath = x
                     })
                     .Select(x => (x.resourceId, searchAudioFile(x.dataPath), x.dataPath))
-                    .Select(x => (x.resourceId, LoadAudio(x.Item2, x.dataPath, task_index: task_index)))
+                    .Select(x => (x.resourceId, LoadAudio(x.Item2, x.dataPath)))
                     .Where(x => x.Item2 is int)
                     .ToDictionary(x => x.resourceId, x => x.Item2.Value);
 
@@ -344,7 +359,7 @@ namespace BmsPreviewAudioGenerator
                     if (audioLen < 0)
                     {
                         var audioName = wavList.ElementAtOrDefault(wavId);
-                        Console.WriteLine($"[{task_index}] Can't load and parse wavId {wavId} (becuase audioLen < 0), audioName = {audioName}, ignored.");
+                        ThreadLocalLogger.Instance.Log($"Can't load and parse wavId {wavId} (becuase audioLen < 0), audioName = {audioName}, ignored.");
                         return default;
                     }
                     return new AudioMixEvent()
@@ -360,11 +375,11 @@ namespace BmsPreviewAudioGenerator
                 /*
                 foreach (var @event in bms_evemts)
                 {
-                    Console.WriteLine($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds / 1000.0f}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
+                    ThreadLocalLogger.Instance.Log($"{@event.GetType().Name.Replace("Note", "")} {TimeSpan.FromMilliseconds(@event.getMilliTime()).TotalMilliseconds / 1000.0f}    {NumberToString(@event.getWav())}    {wavList[@event.getWav()]}");
                 }
                 foreach (var @event in mixer_events)
                 {
-                    Console.WriteLine($"{@event.GetType().Name.Replace("MixEvent", "")} {@event.Time} {@event switch { AudioMixEvent a=> " + "+ (int)a.Duration.TotalMilliseconds + "   " + wavList[a.WavId],_ => "",}}");
+                    ThreadLocalLogger.Instance.Log($"{@event.GetType().Name.Replace("MixEvent", "")} {@event.Time} {@event switch { AudioMixEvent a=> " + "+ (int)a.Duration.TotalMilliseconds + "   " + wavList[a.WavId],_ => "",}}");
                 }
                 */
 
@@ -390,7 +405,7 @@ namespace BmsPreviewAudioGenerator
                     actual_start_time = t;
                 }
 
-                Console.WriteLine($"[{task_index}] Actual clip({(int)full_audio_duration.TotalMilliseconds}ms):{(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
+                ThreadLocalLogger.Instance.Log($"Actual clip({(int)full_audio_duration.TotalMilliseconds}ms):{(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
 
                 #endregion
 
@@ -449,7 +464,7 @@ namespace BmsPreviewAudioGenerator
                             encoder = encoding_type == 0 ? default : AudioEncoderFactory.CreateAudioEncoder(encoding_type);
                             encoder = encoder ?? AudioEncoderFactory.CreateAudioEncoder(output_path);
 
-                            Console.WriteLine($"[{task_index}] Encoding output file path as {encoder?.GetType().Name} : {output_path}");
+                            ThreadLocalLogger.Instance.Log($"Encoding output file path as {encoder?.GetType().Name} : {output_path}");
 
                             if (encoder is null)
                                 throw new Exception($"Can't create encoder encodingType = {encoding_type}, skipped.");
@@ -491,7 +506,7 @@ namespace BmsPreviewAudioGenerator
 
                 WaitChannelDataProcessed(mixer);
 
-                Console.WriteLine($"[{task_index}] Success!");
+                ThreadLocalLogger.Instance.Log($"Success!");
                 return true;
             }
             finally
@@ -517,7 +532,7 @@ namespace BmsPreviewAudioGenerator
                     if (!ignore_audio_missing)
                         throw new Exception($"Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath})");
 
-                    Console.WriteLine($"[{task_index}] Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath}) , ignored.");
+                    ThreadLocalLogger.Instance.Log($"[{task_index}] Audio file not found: {audioFilePath} (hintDataPath : {hintDataPath}) , ignored.");
                     return default;
                 }
 
@@ -538,8 +553,8 @@ namespace BmsPreviewAudioGenerator
         }
 
 
-        private static Dictionary<string, Encoding> cachedEncoding = new();
-        private static Encoding DetectEncoding(string bms_file_path, int task_index)
+        private static ConcurrentDictionary<string, Encoding> cachedEncoding = new();
+        private static Encoding DetectEncoding(string bms_file_path)
         {
             using var fs = File.OpenRead(bms_file_path);
             var detector = new CharsetDetector();
@@ -556,12 +571,12 @@ namespace BmsPreviewAudioGenerator
                 try
                 {
                     encoding = Encoding.GetEncoding(charset);
-                    Console.WriteLine($"[{task_index}] detected new charset:{charset}");
+                    ThreadLocalLogger.Instance.Log($"detected new charset:{charset}");
                 }
                 catch (Exception e)
                 {
                     encoding = default;
-                    Console.WriteLine($"[{task_index}] detected new charset {charset} but can't load: {e.Message}, it will return default.");
+                    ThreadLocalLogger.Instance.Log($"detected new charset {charset} but can't load: {e.Message}, it will return default.");
                 }
 
                 if (encoding != null)
@@ -606,7 +621,7 @@ namespace BmsPreviewAudioGenerator
             actual_start_time -= tst;
             actual_end_time -= tst;
 
-            Console.WriteLine($"Fast clip:remove {remove_count} events,now is {(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
+            ThreadLocalLogger.Instance.Log($"Fast clip:remove {remove_count} events,now is {(int)actual_start_time.TotalMilliseconds}ms ~ {(int)actual_end_time.TotalMilliseconds}ms");
         }
 
         private readonly static string[] support_extension_names = new[]
