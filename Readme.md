@@ -66,7 +66,6 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
  
 ### 计划
 * 可添加歌曲和作者信息进音频标签数据里，以及preview图片文件
-* 多线程执行
 
 ### 注意事项
 * 此工具可能占用500m内存(音频解码/混合/编码),梦回2006的电脑就8要用了8.
