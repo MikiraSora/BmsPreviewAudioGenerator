@@ -242,7 +242,7 @@ namespace BmsPreviewAudioGenerator
             SupportEncodingType encoding_type = SupportEncodingType.Any,
             bool ignore_audio_missing = false)
         {
-            var created_audio_handles = new HashSet<int>();
+            var created_audio_handles = new List<Tuple<int, IntPtr>>();
             var sync_record = new HashSet<int>();
             int mixer = 0;
 
@@ -517,7 +517,10 @@ namespace BmsPreviewAudioGenerator
                     Bass.ChannelRemoveSync(mixer, record);
 
                 foreach (var handle in created_audio_handles)
-                    Bass.StreamFree(handle);
+                {
+                    Bass.StreamFree(handle.Item1);
+                    Marshal.FreeHGlobal(handle.Item2);
+                }
 
                 if (mixer != 0)
                     Bass.StreamFree(mixer);
@@ -537,16 +540,21 @@ namespace BmsPreviewAudioGenerator
                 }
 
                 var buffer = File.ReadAllBytes(audioFilePath);
+                var unmanagedBuffer = Marshal.AllocHGlobal(buffer.Length);
+                Marshal.Copy(buffer, 0, unmanagedBuffer, buffer.Length);
 
                 //var handle = BassOpus.CreateStream(buffer, 0, 0, BassFlags.Decode | BassFlags.Float);
-                var handle = Bass.CreateStream(buffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
+                var handle = Bass.CreateStream(unmanagedBuffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
                 if (handle == 0)
-                    handle = BassOpus.CreateStream(buffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
+                    handle = BassOpus.CreateStream(unmanagedBuffer, 0, buffer.LongLength, BassFlags.Decode | BassFlags.Float);
 
                 if (handle == 0)
+                {
+                    Marshal.FreeHGlobal(unmanagedBuffer);
                     return default;
+                }
 
-                created_audio_handles.Add(handle);
+                created_audio_handles.Add(new Tuple<int, IntPtr>(handle, unmanagedBuffer));
 
                 return handle;
             }
