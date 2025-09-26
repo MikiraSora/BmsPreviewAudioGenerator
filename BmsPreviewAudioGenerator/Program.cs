@@ -44,8 +44,10 @@ namespace BmsPreviewAudioGenerator
             ".bms"
         };
 
-        static void Main(string[] args)
+        static void Main(string[] args
         {
+            Console.OutputEncoding = Encoding.UTF8;
+          
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
