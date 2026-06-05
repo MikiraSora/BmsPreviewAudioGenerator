@@ -2,7 +2,7 @@
   "profiles": {
     "BmsPreviewAudioGenerator": {
       "commandName": "Project",
-      "commandLineArgs": "-path=\"F:\\BMSSP2009\" -thread=4 -batch -no_skip -support_extend_format"
+      "commandLineArgs": "-path=\"F:\\badbms\\Amant Frivole\" -batch -no_skip -support_extend_format"
     }
   }
 }

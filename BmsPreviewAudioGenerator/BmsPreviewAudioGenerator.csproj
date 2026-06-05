@@ -2,9 +2,8 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFrameworks>net8.0</TargetFrameworks>
-		<Platforms>AnyCPU;x86;x64</Platforms>
 		<Version>0.9.9.7</Version>
-		<PublishAOT>true</PublishAOT>
+		<PublishAOT>false</PublishAOT>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="ManagedBass" Version="3.1.1" />
