@@ -45,7 +45,7 @@ namespace BmsPreviewAudioGenerator
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
-          
+
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -558,7 +558,7 @@ namespace BmsPreviewAudioGenerator
 
         private readonly static string[] support_extension_names = new[]
         {
-            ".ogg",".mp3",".wav"
+            ".ogg",".mp3",".wav",".flac"
         };
 
         private static bool CheckSkipable(string dir_path, string content)

@@ -8,6 +8,7 @@
 	<ItemGroup>
 		<PackageReference Include="ManagedBass" Version="3.1.1" />
 		<PackageReference Include="ManagedBass.Enc" Version="3.1.1" />
+		<PackageReference Include="ManagedBass.Flac" Version="3.1.1" />
 		<PackageReference Include="ManagedBass.Fx" Version="3.1.1" />
 		<PackageReference Include="ManagedBass.Mix" Version="3.1.1" />
 		<PackageReference Include="ManagedBass.Opus" Version="3.1.1" />
@@ -27,6 +28,9 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="bassopus.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="bassflac.dll">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="bassenc.dll">
