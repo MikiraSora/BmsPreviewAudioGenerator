@@ -39,7 +39,11 @@ namespace BmsPreviewAudioGenerator
 
         private static string[] support_bms_format = new[]
         {
-            ".bms"
+            ".bms",
+            ".bme",
+            ".bml",
+            ".pms",
+            ".bmson",
         };
 
         static void Main(string[] args)
@@ -89,18 +93,6 @@ namespace BmsPreviewAudioGenerator
             {
                 Console.WriteLine($"program will use parallel, parallel size: {th}");
                 Bass.Configure(Configuration.UpdateThreads, th);
-            }
-
-            if (CommandLine.ContainSwitchOption("support_extend_format"))
-            {
-                support_bms_format = new[]
-                {
-                    ".bms",
-                    ".bme",
-                    ".bml",
-                    ".pms",
-                    ".bmson",
-                };
             }
 
             if (rm)
