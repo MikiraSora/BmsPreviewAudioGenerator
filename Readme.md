@@ -44,8 +44,6 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `process_buffer_size` : 钦定处理音频的缓存的大小，字节单位，默认20000,越大处理越快，但更容易出现栈溢出错误。
 
-* `support_extend_format` :(开关) 额外支持.bme/.bml/.bmson格式的解析
-
 * `check_vaild` :(开关) 额外检查已生成预览音频文件的完整性
 
 * `rm` :(开关) 此选项必须和`path`和`save_name`配合食用，除此之外的选项均无效且忽略。将递归子文件夹，删除path目录内所有符合文件名以"preview"开头且和`save_name`名字相同的文件。
