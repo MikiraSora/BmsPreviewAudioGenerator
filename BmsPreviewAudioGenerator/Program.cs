@@ -222,7 +222,7 @@ namespace BmsPreviewAudioGenerator
         /// 切鸡鸡
         /// </summary>
         /// <param name="dir_path"></param>
-        /// <param name="specific_bms_file_name">可选,钦定文件夹下某个bms谱面文件，如果不钦定就随机选取一个</param>
+        /// <param name="specific_bms_file_name">可选,钦定文件夹下某个bms谱面文件，如果不钦定就自动选取一个</param>
         /// <param name="start_time">起始时间，单位毫秒或者百分比，默认最初</param>
         /// <param name="end_time">终止时间，单位毫秒或者百分比，默认谱面末尾</param>
         /// <param name="encoder_command_line">编码命令</param>
@@ -253,7 +253,9 @@ namespace BmsPreviewAudioGenerator
                 if (!Directory.Exists(dir_path))
                     throw new Exception($"Directory {dir_path} not found.");
 
-                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name) ? Directory.EnumerateFiles(dir_path, "*.*m*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))).FirstOrDefault() : Path.Combine(dir_path, specific_bms_file_name);
+                var bms_file_path = string.IsNullOrWhiteSpace(specific_bms_file_name)
+                    ? BmsFilePicker.Pick(Directory.EnumerateFiles(dir_path, "*.*m*", SearchOption.TopDirectoryOnly).Where(x => support_bms_format.Any(y => x.EndsWith(y, StringComparison.InvariantCultureIgnoreCase))))
+                    : Path.Combine(dir_path, specific_bms_file_name);
 
                 if (!File.Exists(bms_file_path))
                     throw new Exception($"BMS file {bms_file_path} not found.");
