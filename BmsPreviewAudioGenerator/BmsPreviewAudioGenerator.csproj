@@ -6,6 +6,14 @@
 		<PublishAOT>false</PublishAOT>
 		<CetCompat>false</CetCompat>
 	</PropertyGroup>
+
+	<!-- 原生库目标平台: 显式指定 RuntimeIdentifier 时取其前缀(win/linux), 未指定时跟随当前构建系统 -->
+	<PropertyGroup>
+		<_BassTargetOs Condition="'$(RuntimeIdentifier)' != ''">$([System.String]::new('$(RuntimeIdentifier)').Split('-')[0])</_BassTargetOs>
+		<_BassTargetOs Condition="'$(_BassTargetOs)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux</_BassTargetOs>
+		<_BassTargetOs Condition="'$(_BassTargetOs)' == ''">win</_BassTargetOs>
+	</PropertyGroup>
+  
 	<ItemGroup>
 		<PackageReference Include="ManagedBass" Version="3.1.1" />
 		<PackageReference Include="ManagedBass.Enc" Version="3.1.1" />
@@ -19,39 +27,11 @@
 		<ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<None Update="bass.dll">
+		<None Update="bass*.dll" Condition="'$(_BassTargetOs)' == 'win'">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 		</None>
-		<None Update="bassenc_mp3.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="bassenc_ogg.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="bassopus.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="bassflac.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="bassenc.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="bassenc_opus.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="bassmix.dll">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="lib*.so">
+		<None Update="libbass*.so" Condition="'$(_BassTargetOs)' == 'linux'">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 		</None>
