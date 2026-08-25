@@ -70,6 +70,8 @@ namespace BmsPreviewAudioGenerator
 
             Console.WriteLine($"Init BASS successfully.");
 
+            PreloadNativeEncoderLibraries();
+
             ProcessBufferSize = CommandLine.TryGetOptionValue<int>("process_buffer_size", out var q) ? q : 20_000;
 
             var th = CommandLine.TryGetOptionValue<int>("thread", out var thh) ? Math.Min(Math.Max(1, thh), Environment.ProcessorCount) : 1;
@@ -168,6 +170,33 @@ namespace BmsPreviewAudioGenerator
             Console.WriteLine($"Spent time: {DateTime.Now - start_time}");
 
             Bass.Free();
+        }
+
+        private static void PreloadNativeEncoderLibraries()
+        {
+            //bassenc_ogg/bassenc_mp3/bassenc_opus depend on bassenc (which depends on bass).
+            //On Linux/macOS the system loader won't search the app folder when resolving
+            //those transitive dependencies, so load them by absolute path up-front.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                return;
+
+            var ext = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? ".dylib" : ".so";
+
+            foreach (var libName in new[] { "libbass", "libbassenc" })
+            {
+                var libPath = Path.Combine(AppContext.BaseDirectory, libName + ext);
+
+                if (!File.Exists(libPath))
+                {
+                    Console.WriteLine($"Warning: {libPath} not found, encoders may fail to load.");
+                    continue;
+                }
+
+                if (NativeLibrary.TryLoad(libPath, out _))
+                    Console.WriteLine($"Preloaded native library: {libPath}");
+                else
+                    Console.WriteLine($"Warning: failed to preload native library: {libPath}");
+            }
         }
 
         private static void DeleteGeneratedAudioFiles(string path, string sn)
@@ -371,6 +400,7 @@ namespace BmsPreviewAudioGenerator
 
                 //save encoder handle
                 IAudioEncoder encoder = default;
+                Errors? encode_start_error = default;
 
                 #region apply fade in/out
 
@@ -428,7 +458,25 @@ namespace BmsPreviewAudioGenerator
                                 EncodeOutputFilePath = output_path,
                                 MixHandle = mixer
                             };
-                            encoder.BeginEncode(encParam);
+                            //don't let an exception unwind through BASS native frames,
+                            //record the failure and stop the mixer so the process loop can end
+                            try
+                            {
+                                encoder.BeginEncode(encParam);
+                                if (!encoder.IsEncoding)
+                                    encode_start_error = Bass.LastError;
+                            }
+                            catch (Exception ex)
+                            {
+                                ThreadLocalLogger.Instance.Log($"Encoder threw an exception: {ex.Message}");
+                                encode_start_error = Bass.LastError;
+                            }
+
+                            if (encode_start_error is Errors err)
+                            {
+                                ThreadLocalLogger.Instance.Log($"Encoder failed to start (bass error: {err}), abort.");
+                                Bass.ChannelStop(mixer);
+                            }
                         }
                         else if (evt is AudioMixEvent audio)
                         {
@@ -458,6 +506,9 @@ namespace BmsPreviewAudioGenerator
                 }
 
                 WaitChannelDataProcessed(mixer);
+
+                if (encode_start_error is Errors encodeError)
+                    throw new Exception($"Encoder failed to start: {encodeError}");
 
                 ThreadLocalLogger.Instance.Log($"Success!");
                 return true;
