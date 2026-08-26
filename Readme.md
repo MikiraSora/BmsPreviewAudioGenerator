@@ -15,6 +15,11 @@
 BmsPreviewAudioGenerator.exe -path="E:\[BMS]ENERGY SYNERGY MATRIX" -bms="_hyper.bms" -start="50%" -end="75%" -save_name="preview_neko.ogg"
 ```
 
+* 同上，但输出为FLAC格式(通过`-encoder=flac`显式钦定,或将文件扩展名改为`.flac`)
+```
+BmsPreviewAudioGenerator.exe -path="E:\[BMS]ENERGY SYNERGY MATRIX" -bms="_hyper.bms" -start="50%" -end="75%" -save_name="preview_neko.flac"
+```
+
 * 批量生成某个某个路径内所有bms文件夹的预览音频，截取的开始时间为**20000ms**，结束时间为**40000ms**,并将生成的文件钦定`preview2857.ogg`保存到对应的目录.(会递归枚举所有含有.bms文件的文件夹,但对于每个文件夹只会生成一份预览音频)
 ```
 BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="40000" -save_name="preview2857.ogg"
@@ -38,7 +43,7 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `bms` : 钦定bms文件名字,批量环境下会自动选取第一个bms类型文件,此参数不能和`batch`共存
 
-* `save_name` : 钦定输出的预览音频文件名,貌似也能钦定一个绝对路径,默认为`preview_auto_generator.ogg`
+* `save_name` : 钦定输出的预览音频文件名,貌似也能钦定一个绝对路径,默认为`preview_auto_generator.ogg`.文件扩展名同时决定输出格式(详见`encoder`参数)
 
 * `fast_clip` :(开关) 钦定使用快速切分实现，编码速度更快.
 
@@ -54,7 +59,7 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 
 * `no_skip` :(开关) 禁止跳过检查
 
-* `encoder` : 钦定生成的预览音频的音频文件格式，目前支持`mp3`/`wav`/`ogg`/`any`,不选默认`any`参数(即由文件扩展名自动选择)
+* `encoder` : 钦定生成的预览音频的音频文件格式，目前支持`ogg`/`opus`/`mp3`/`flac`/`any`(大小写不敏感)，不选或选`any`时由`save_name`的文件扩展名自动选择(`.flac`=>FLAC,`.opus`=>Opus,`.mp3`=>Mp3,其余=>Ogg)
 
 * `encoder_option_base64` : 可选参数，能对指定的encoder进行详细的微调，注意此参数需要的是值的Base64形式
 
@@ -69,3 +74,5 @@ BmsPreviewAudioGenerator.exe -batch -path="H:\BOF2012" -start="20000" -end="4000
 * 此工具可能占用500m内存(音频解码/混合/编码),梦回2006的电脑就8要用了8.
 * 可能有一些奇葩bms文件解析不了
 * 给beatoraja预览使用还得rebuild/update database(这货并不会搞没成绩)[原因](https://github.com/exch-bms2/beatoraja/issues/400)
+* 支持Windows(x64)与Linux(x64),无需安装额外运行时。无声卡环境(如WSL/容器/无头服务器)亦可正常离线生成
+* FLAC输出依赖bassenc_flac插件,OPUS解码/编码依赖对应BASS插件,Windows/Linux版本均已内置
