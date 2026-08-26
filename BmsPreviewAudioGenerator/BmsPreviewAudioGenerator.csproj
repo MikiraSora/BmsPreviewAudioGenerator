@@ -7,13 +7,6 @@
 		<CetCompat>false</CetCompat>
 	</PropertyGroup>
 
-	<!-- 原生库目标平台: 显式指定 RuntimeIdentifier 时取其前缀(win/linux), 未指定时跟随当前构建系统 -->
-	<PropertyGroup>
-		<_BassTargetOs Condition="'$(RuntimeIdentifier)' != ''">$([System.String]::new('$(RuntimeIdentifier)').Split('-')[0])</_BassTargetOs>
-		<_BassTargetOs Condition="'$(_BassTargetOs)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux</_BassTargetOs>
-		<_BassTargetOs Condition="'$(_BassTargetOs)' == ''">win</_BassTargetOs>
-	</PropertyGroup>
-  
 	<ItemGroup>
 		<PackageReference Include="ManagedBass" Version="3.1.1" />
 		<PackageReference Include="ManagedBass.Enc" Version="3.1.1" />
@@ -26,14 +19,40 @@
 	<ItemGroup>
 		<ProjectReference Include="..\csbms-parser\CSBMSParser\CSBMSParser\CSBMSParser.csproj" />
 	</ItemGroup>
-	<ItemGroup>
-		<None Update="bass*.dll" Condition="'$(_BassTargetOs)' == 'win'">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-		<None Update="libbass*.so" Condition="'$(_BassTargetOs)' == 'linux'">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
-	</ItemGroup>
+	<!-- Native library target OS: use the RuntimeIdentifier prefix (win/linux) when explicitly set, otherwise follow the host system.
+	     The publish profile (pubxml) is imported after the project body is evaluated, so static conditions cannot see its RuntimeIdentifier;
+	     it must be resolved at execution time. Copying via None item metadata also gets starved by incrementally skipped targets, so copy explicitly -->
+	<Target Name="CopyBassNativeLibraries" AfterTargets="Build">
+		<PropertyGroup>
+			<_BassTargetOs Condition="'$(RuntimeIdentifier)' != ''">$([System.String]::new('$(RuntimeIdentifier)').Split('-')[0])</_BassTargetOs>
+			<_BassTargetOs Condition="'$(_BassTargetOs)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux</_BassTargetOs>
+			<_BassTargetOs Condition="'$(_BassTargetOs)' == ''">win</_BassTargetOs>
+			<_BassNativeGlob Condition="'$(_BassTargetOs)' == 'win'">bass*.dll</_BassNativeGlob>
+			<_BassNativeGlob Condition="'$(_BassTargetOs)' == 'linux'">libbass*.so</_BassNativeGlob>
+		</PropertyGroup>
+		<ItemGroup Condition="'$(_BassNativeGlob)' != ''">
+			<_BassNativeFiles Include="$(MSBuildProjectDirectory)\$(_BassNativeGlob)" />
+		</ItemGroup>
+		<Copy SourceFiles="@(_BassNativeFiles)"
+			  DestinationFiles="@(_BassNativeFiles->'$(OutDir)%(Filename)%(Extension)')"
+			  SkipUnchangedFiles="true"
+			  Condition="'@(_BassNativeFiles)' != ''" />
+	</Target>
+	<Target Name="CopyBassNativeLibrariesToPublish" AfterTargets="ComputeAndCopyFilesToPublishDirectory">
+		<PropertyGroup>
+			<!-- Fallback re-evaluation for cases where the build-time target may not have run (e.g. no-build publish) -->
+			<_BassTargetOs Condition="'$(_BassTargetOs)' == ''">$([System.String]::new('$(RuntimeIdentifier)').Split('-')[0])</_BassTargetOs>
+			<_BassTargetOs Condition="'$(_BassTargetOs)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux</_BassTargetOs>
+			<_BassTargetOs Condition="'$(_BassTargetOs)' == ''">win</_BassTargetOs>
+			<_BassNativeGlob Condition="'$(_BassNativeGlob)' == '' and '$(_BassTargetOs)' == 'win'">bass*.dll</_BassNativeGlob>
+			<_BassNativeGlob Condition="'$(_BassNativeGlob)' == '' and '$(_BassTargetOs)' == 'linux'">libbass*.so</_BassNativeGlob>
+		</PropertyGroup>
+		<ItemGroup Condition="'$(_BassNativeGlob)' != ''">
+			<_BassNativeFiles Include="$(MSBuildProjectDirectory)\$(_BassNativeGlob)" />
+		</ItemGroup>
+		<Copy SourceFiles="@(_BassNativeFiles)"
+			  DestinationFiles="@(_BassNativeFiles->'$(PublishDir)%(Filename)%(Extension)')"
+			  SkipUnchangedFiles="true"
+			  Condition="'@(_BassNativeFiles)' != ''" />
+	</Target>
 </Project>

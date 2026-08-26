@@ -62,7 +62,8 @@ namespace BmsPreviewAudioGenerator
                 return;
             }
 
-            if (!Bass.Init())
+            //When no default audio device exists (e.g. WSL/containers without a sound card), fall back to BASS device 0 (no sound); offline decode/mixing is unaffected
+            if (!Bass.Init() && !Bass.Init(0))
             {
                 Console.WriteLine($"Init BASS failed:{Bass.LastError}");
                 return;
@@ -175,13 +176,11 @@ namespace BmsPreviewAudioGenerator
         private static void PreloadNativeEncoderLibraries()
         {
             //bassenc_ogg/bassenc_mp3/bassenc_opus depend on bassenc (which depends on bass).
-            //On Linux/macOS the system loader won't search the app folder when resolving
-            //those transitive dependencies, so load them by absolute path up-front.
+            //On Linux/macOS the system loader won't search the app folder when resolving these transitive dependencies, so load them by absolute path up-front.
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return;
 
             var ext = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? ".dylib" : ".so";
-
             foreach (var libName in new[] { "libbass", "libbassenc" })
             {
                 var libPath = Path.Combine(AppContext.BaseDirectory, libName + ext);
@@ -196,6 +195,23 @@ namespace BmsPreviewAudioGenerator
                     Console.WriteLine($"Preloaded native library: {libPath}");
                 else
                     Console.WriteLine($"Warning: failed to preload native library: {libPath}");
+            }
+
+            //Decoding formats like FLAC/OPUS relies on BASS plugins; auto-scanning is unreliable on Linux (drvfs/permissions), so register them explicitly
+            foreach (var plugin in new[] { "libbassflac", "libbassopus" })
+            {
+                var pluginPath = Path.Combine(AppContext.BaseDirectory, plugin + ext);
+
+                if (!File.Exists(pluginPath))
+                {
+                    Console.WriteLine($"Warning: {pluginPath} not found, some audio formats may fail to decode.");
+                    continue;
+                }
+
+                if (Bass.PluginLoad(pluginPath) != 0)
+                    Console.WriteLine($"Loaded BASS plugin: {pluginPath}");
+                else
+                    Console.WriteLine($"Warning: failed to load BASS plugin: {pluginPath} ({Bass.LastError})");
             }
         }
 
