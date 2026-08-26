@@ -38,7 +38,10 @@
 			  SkipUnchangedFiles="true"
 			  Condition="'@(_BassNativeFiles)' != ''" />
 	</Target>
-	<Target Name="CopyBassNativeLibrariesToPublish" AfterTargets="ComputeAndCopyFilesToPublishDirectory">
+	<!-- Runs right after the publish file list is computed and before GenerateSingleFileBundle,
+	     so the libs are both copied out and embedded in the single-file bundle.
+	     Hooking later (e.g. after the publish copy) leaves them on disk but outside the bundle -->
+	<Target Name="AddBassNativeLibrariesToPublish" AfterTargets="ComputeResolvedFilesToPublishList">
 		<PropertyGroup>
 			<!-- Fallback re-evaluation for cases where the build-time target may not have run (e.g. no-build publish) -->
 			<_BassTargetOs Condition="'$(_BassTargetOs)' == ''">$([System.String]::new('$(RuntimeIdentifier)').Split('-')[0])</_BassTargetOs>
@@ -49,10 +52,10 @@
 		</PropertyGroup>
 		<ItemGroup Condition="'$(_BassNativeGlob)' != ''">
 			<_BassNativeFiles Include="$(MSBuildProjectDirectory)\$(_BassNativeGlob)" />
+			<ResolvedFileToPublish Include="@(_BassNativeFiles)">
+				<RelativePath>%(Filename)%(Extension)</RelativePath>
+				<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+			</ResolvedFileToPublish>
 		</ItemGroup>
-		<Copy SourceFiles="@(_BassNativeFiles)"
-			  DestinationFiles="@(_BassNativeFiles->'$(PublishDir)%(Filename)%(Extension)')"
-			  SkipUnchangedFiles="true"
-			  Condition="'@(_BassNativeFiles)' != ''" />
 	</Target>
 </Project>
