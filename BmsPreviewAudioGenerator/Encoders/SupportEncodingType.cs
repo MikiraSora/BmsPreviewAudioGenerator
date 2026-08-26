@@ -10,5 +10,6 @@ namespace BmsPreviewAudioGenerator.Encoders
         Opus,
         Ogg,
         Mp3,
+        Flac,
     }
 }

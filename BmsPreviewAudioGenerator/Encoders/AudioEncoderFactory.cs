@@ -15,6 +15,8 @@ namespace BmsPreviewAudioGenerator.Encoders
             return extFileName switch
             {
                 "mp3" => CreateAudioEncoder(SupportEncodingType.Mp3),
+                "opus" => CreateAudioEncoder(SupportEncodingType.Opus),
+                "flac" => CreateAudioEncoder(SupportEncodingType.Flac),
                 _ => CreateAudioEncoder(SupportEncodingType.Ogg),
             };
         }
@@ -24,7 +26,8 @@ namespace BmsPreviewAudioGenerator.Encoders
             {
                 SupportEncodingType.Opus => new OpusAudioEncoder(),
                 SupportEncodingType.Mp3 => new Mp3AudioEncoder(),
-                 _ => new OggAudioEncoder(),
+                SupportEncodingType.Flac => new FlacAudioEncoder(),
+                _ => new OggAudioEncoder(),
             };
     }
 }
